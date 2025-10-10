@@ -40,9 +40,15 @@ export { loadDictionaryData, isValidWord, getSampleWords } from './dictionary-se
  * - 134,306 pronunciation entries
  * - 1,239 rhyme groups with 3+ words each
  *
+ * Definition Data:
+ * - 108,134 definitions from Webster's English Dictionary
+ * - Multiple definitions per word supported
+ * - Part of speech and pronunciation information included
+ *
  * Data Files Generated:
  * - words-by-difficulty.json (31.6 MB)
- * - words-by-length.json (missing file size)
+ * - words-by-length.json
  * - phonetics.json (21.8 MB)
  * - rhyme-groups.json (1.9 MB)
+ * - definitions.json (comprehensive definitions)
  */

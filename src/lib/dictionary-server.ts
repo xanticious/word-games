@@ -10,7 +10,8 @@ import type {
 	DifficultyWordLists,
 	WordsByLength,
 	PhoneticEntry,
-	RhymeGroups
+	RhymeGroups,
+	DefinitionEntry
 } from './dictionary.js';
 
 const dataPath = join(process.cwd(), 'src', 'lib', 'data');
@@ -36,11 +37,16 @@ export function loadDictionaryData() {
 			readFileSync(join(dataPath, 'rhyme-groups.json'), 'utf-8')
 		);
 
+		const definitions: DefinitionEntry[] = JSON.parse(
+			readFileSync(join(dataPath, 'definitions.json'), 'utf-8')
+		);
+
 		return {
 			wordsByDifficulty,
 			wordsByLength,
 			phonetics,
-			rhymeGroups
+			rhymeGroups,
+			definitions
 		};
 	} catch (error) {
 		console.error('Failed to load dictionary data:', error);
@@ -74,9 +80,21 @@ export function isValidWord(word: string): boolean {
 export function getSampleWords(count: number = 10): string[] {
 	try {
 		const { wordsByDifficulty } = loadDictionaryData();
-		const easyWords = wordsByDifficulty.easy.slice(0, count).map((entry) => entry.word);
+		const easyWords = wordsByDifficulty.easy.slice(0, count).map((entry: any) => entry.word);
 		return easyWords;
 	} catch {
 		return ['cat', 'dog', 'house', 'tree', 'book', 'car', 'sun', 'moon', 'star', 'fish'];
+	}
+}
+
+/**
+ * Get definition for a word
+ */
+export function getDefinition(word: string): DefinitionEntry | null {
+	try {
+		const { definitions } = loadDictionaryData();
+		return definitions.find((def) => def.word === word.toLowerCase()) || null;
+	} catch {
+		return null;
 	}
 }

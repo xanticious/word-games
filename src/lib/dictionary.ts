@@ -21,8 +21,9 @@ export interface PhoneticEntry {
 export interface DefinitionEntry {
 	word: string;
 	definitions: string[];
+	partOfSpeech?: string;
+	pronunciation?: string;
 }
-
 export interface DifficultyWordLists {
 	easy: WordEntry[];
 	medium: WordEntry[];
@@ -45,9 +46,8 @@ export class GameDictionary {
 	private wordsByLength: WordsByLength | null = null;
 	private phonetics: PhoneticEntry[] | null = null;
 	private rhymeGroups: RhymeGroups | null = null;
-	private validWords: Set<string> | null = null;
-
-	/**
+	private definitions: DefinitionEntry[] | null = null;
+	private validWords: Set<string> | null = null; /**
 	 * Load dictionary data (call this once at app startup)
 	 */
 	async loadDictionaries(): Promise<void> {
@@ -57,20 +57,21 @@ export class GameDictionary {
 				wordsByDifficultyResponse,
 				wordsByLengthResponse,
 				phoneticsResponse,
-				rhymeGroupsResponse
+				rhymeGroupsResponse,
+				definitionsResponse
 			] = await Promise.all([
 				fetch('/src/lib/data/words-by-difficulty.json'),
 				fetch('/src/lib/data/words-by-length.json'),
 				fetch('/src/lib/data/phonetics.json'),
-				fetch('/src/lib/data/rhyme-groups.json')
+				fetch('/src/lib/data/rhyme-groups.json'),
+				fetch('/src/lib/data/definitions.json')
 			]);
 
 			this.wordsByDifficulty = await wordsByDifficultyResponse.json();
 			this.wordsByLength = await wordsByLengthResponse.json();
 			this.phonetics = await phoneticsResponse.json();
 			this.rhymeGroups = await rhymeGroupsResponse.json();
-
-			// Create a fast lookup set for word validation
+			this.definitions = await definitionsResponse.json(); // Create a fast lookup set for word validation
 			this.createValidWordsSet();
 
 			console.log('Dictionary loaded successfully');
@@ -231,6 +232,28 @@ export class GameDictionary {
 	}
 
 	/**
+	 * Get definition for a word
+	 */
+	getDefinition(word: string): DefinitionEntry | null {
+		if (!this.definitions) {
+			throw new Error('Dictionary not loaded');
+		}
+
+		return this.definitions.find((entry) => entry.word === word.toLowerCase()) || null;
+	}
+
+	/**
+	 * Get all definitions for a word (there might be multiple entries for the same word)
+	 */
+	getAllDefinitions(word: string): DefinitionEntry[] {
+		if (!this.definitions) {
+			throw new Error('Dictionary not loaded');
+		}
+
+		return this.definitions.filter((entry) => entry.word === word.toLowerCase());
+	}
+
+	/**
 	 * Generate anagram candidates from letters
 	 */
 	findWordsFromLetters(availableLetters: string, minLength: number = 3): string[] {
@@ -305,8 +328,9 @@ export class GameDictionary {
 		wordsByDifficulty: Record<string, number>;
 		phoneticsCount: number;
 		rhymeGroupsCount: number;
+		definitionsCount: number;
 	} {
-		if (!this.wordsByDifficulty || !this.phonetics || !this.rhymeGroups) {
+		if (!this.wordsByDifficulty || !this.phonetics || !this.rhymeGroups || !this.definitions) {
 			throw new Error('Dictionary not loaded');
 		}
 
@@ -318,7 +342,8 @@ export class GameDictionary {
 				hard: this.wordsByDifficulty.hard.length
 			},
 			phoneticsCount: this.phonetics.length,
-			rhymeGroupsCount: Object.keys(this.rhymeGroups).length
+			rhymeGroupsCount: Object.keys(this.rhymeGroups).length,
+			definitionsCount: this.definitions.length
 		};
 	}
 }
