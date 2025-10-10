@@ -1,19 +1,15 @@
 /**
- * Word Games Dictionary System
+ * Word Games Collection - Main Library Export
  *
- * This module provides comprehensive dictionary functionality for word games including:
- * - Word validation and categorization by difficulty
- * - Phonetic analysis and rhyme detection
- * - Anagram generation and letter-based word finding
- * - Word search puzzle generation
- *
- * The dictionary system is built from multiple sources:
- * - 370,000+ words from SCOWL (Spell Checker Oriented Word Lists)
- * - 134,000+ phonetic entries from CMU Pronouncing Dictionary
- * - 1,200+ rhyme groups for rhyme-based games
+ * This module provides the complete foundation for the word games collection including:
+ * - Dictionary system with 370K+ words and rhyme detection
+ * - Type definitions for games, settings, and UI components
+ * - Shared Svelte components with accessibility features
+ * - Global state management with localStorage persistence
+ * - Utility functions for common game operations
  */
 
-// Export main dictionary class and types
+// Export dictionary system
 export {
 	GameDictionary,
 	gameDictionary,
@@ -27,6 +23,18 @@ export {
 
 // Export server-side utilities for development
 export { loadDictionaryData, isValidWord, getSampleWords } from './dictionary-server.js';
+
+// Export all type definitions
+export * from './types/index.js';
+
+// Export shared components
+export * from './components/index.js';
+
+// Export global stores
+export * from './stores/index.js';
+
+// Export utility functions
+export * from './utils/index.js';
 
 /**
  * Dictionary Statistics (based on processed data):
