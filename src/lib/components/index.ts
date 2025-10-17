@@ -8,6 +8,9 @@ export { default as DifficultySelector } from './DifficultySelector.svelte';
 export { default as Header } from './Header.svelte';
 export { default as SettingsModal } from './SettingsModal.svelte';
 
+// Game components
+export { default as FullscreenButton } from './FullscreenButton.svelte';
+
 // Utility components - to be added in later phases
 // export { default as Button } from './Button.svelte';
 // export { default as Modal } from './Modal.svelte';
