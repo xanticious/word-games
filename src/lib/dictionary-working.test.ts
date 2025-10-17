@@ -50,11 +50,14 @@ const mockDictionaryData = {
 		{ word: 'house', phonetic: 'HH AW S', sounds: ['HH', 'AW', 'S'] }
 	],
 	rhymeGroups: {
-		'AH': ['the', 'a'],
+		AH: ['the', 'a'],
 		'AW S': ['house', 'mouse']
 	},
 	definitions: [
-		{ word: 'the', definitions: ['Used to refer to one or more people or things already mentioned'] },
+		{
+			word: 'the',
+			definitions: ['Used to refer to one or more people or things already mentioned']
+		},
 		{ word: 'house', definitions: ['A building for human habitation'] }
 	]
 };
