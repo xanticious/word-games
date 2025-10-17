@@ -56,11 +56,14 @@ class DictionaryProcessor {
 		const content = readFileSync(filePath, 'utf-8');
 		const words = content.split('\n').filter((word) => word.trim().length > 0);
 
-		return words.map((word) => ({
-			word: word.toLowerCase().trim(),
-			length: word.length,
-			difficulty: this.calculateDifficulty(word)
-		}));
+		return words.map((word) => {
+			const cleanWord = word.toLowerCase().trim();
+			return {
+				word: cleanWord,
+				length: cleanWord.length,
+				difficulty: this.calculateDifficulty(cleanWord)
+			};
+		});
 	}
 
 	/**
