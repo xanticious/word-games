@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 	import { settings } from '$lib/stores/settings.js';
 	import { currentTheme } from '$lib/stores/themes.js';
 	import { ThemeSelector } from '$lib/components/index.js';
@@ -23,12 +24,12 @@
 	}
 
 	// Check if we're on the home page
-	let isHomePage = $derived($page.url.pathname === '/');
+	let isHomePage = $derived($page.url.pathname === base || $page.url.pathname === `${base}/`);
 
 	// Navigation items
 	const navItems = [
-		{ label: 'Home', href: '/', icon: '🏠' },
-		{ label: 'Games', href: '/#games', icon: '🎮' }
+		{ label: 'Home', href: base || '/', icon: '🏠' },
+		{ label: 'Games', href: `${base || ''}/#games`, icon: '🎮' }
 	];
 </script>
 
@@ -40,7 +41,7 @@
 	<div class="container flex h-16 items-center justify-between">
 		<!-- Logo and title -->
 		<div class="flex items-center gap-4">
-			<a href="/" class="flex items-center gap-2 transition-opacity hover:opacity-80">
+			<a href={base || '/'} class="flex items-center gap-2 transition-opacity hover:opacity-80">
 				<div class="text-2xl">🎯</div>
 				<div class="text-foreground text-lg font-bold">Word Games</div>
 			</a>

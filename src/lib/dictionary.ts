@@ -5,6 +5,8 @@
  * including word validation, rhyme detection, and categorization.
  */
 
+import { base } from '$app/paths';
+
 export interface WordEntry {
 	word: string;
 	length: number;
@@ -60,11 +62,11 @@ export class GameDictionary {
 				rhymeGroupsResponse,
 				definitionsResponse
 			] = await Promise.all([
-				fetch('/src/lib/data/words-by-difficulty.json'),
-				fetch('/src/lib/data/words-by-length.json'),
-				fetch('/src/lib/data/phonetics.json'),
-				fetch('/src/lib/data/rhyme-groups.json'),
-				fetch('/src/lib/data/definitions.json')
+				fetch(`${base}/data/words-by-difficulty.json`),
+				fetch(`${base}/data/words-by-length.json`),
+				fetch(`${base}/data/phonetics.json`),
+				fetch(`${base}/data/rhyme-groups.json`),
+				fetch(`${base}/data/definitions.json`)
 			]);
 
 			this.wordsByDifficulty = await wordsByDifficultyResponse.json();

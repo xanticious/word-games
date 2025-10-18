@@ -4,6 +4,7 @@
 	import { gameHistory } from '$lib/stores/gameHistory.js';
 	import { getAllGames } from '$lib/utils/gameConfigs.js';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	// Get all available games
 	const games = getAllGames();
@@ -21,8 +22,8 @@
 		// Add to recent games
 		settingsActions.addRecentGame(gameId);
 
-		// Navigate to game
-		goto(`/${gameId}`);
+		// Navigate to game using base path for GitHub Pages
+		goto(`${base}/${gameId}`);
 	}
 
 	// Handle favorite toggle
