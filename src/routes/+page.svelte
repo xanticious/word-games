@@ -22,8 +22,12 @@
 		// Add to recent games
 		settingsActions.addRecentGame(gameId);
 
+		// Find the game configuration and use its route
+		const game = games.find((g) => g.id === gameId);
+		const route = game?.route || `/${gameId}`;
+
 		// Navigate to game using base path for GitHub Pages
-		goto(`${base}/${gameId}`);
+		goto(`${base}${route}`);
 	}
 
 	// Handle favorite toggle
