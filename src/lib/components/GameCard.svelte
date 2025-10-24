@@ -29,18 +29,8 @@
 	}
 
 	function getCategoryIcon(category: string) {
-		switch (category) {
-			case 'word-guessing':
-				return '🎯';
-			case 'puzzle':
-				return '🧩';
-			case 'speed':
-				return '⚡';
-			case 'creative':
-				return '🎨';
-			default:
-				return '🎮';
-		}
+		// Return empty string instead of emojis
+		return '';
 	}
 
 	function getDifficultyColor(difficulty: string) {
@@ -71,7 +61,7 @@
 	{#if onToggleFavorite}
 		<button
 			onclick={handleFavoriteClick}
-			class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium opacity-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-hover:opacity-100"
+			class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground absolute top-2 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium opacity-0 transition-colors group-hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 			aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 		>
 			{#if isFavorite}
@@ -112,7 +102,7 @@
 	{/if}
 
 	<!-- Status indicators -->
-	<div class="absolute left-2 top-2 flex gap-1">
+	<div class="absolute top-2 left-2 flex gap-1">
 		{#if isRecent}
 			<span
 				class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
@@ -124,7 +114,7 @@
 			<span
 				class="inline-flex items-center rounded-full border border-yellow-200 bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700"
 			>
-				⭐
+				Favorite
 			</span>
 		{/if}
 	</div>
@@ -137,7 +127,7 @@
 	<!-- Game Info -->
 	<div class="space-y-2">
 		<div>
-			<h3 class="font-semibold leading-none tracking-tight {compact ? 'text-base' : 'text-lg'}">
+			<h3 class="leading-none font-semibold tracking-tight {compact ? 'text-base' : 'text-lg'}">
 				{config.name}
 			</h3>
 			{#if !compact}

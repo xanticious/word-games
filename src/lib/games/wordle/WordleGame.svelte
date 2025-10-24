@@ -6,6 +6,7 @@
 	import { onMount } from 'svelte';
 	import WordleGrid from './WordleGrid.svelte';
 	import WordleKeyboard from './WordleKeyboard.svelte';
+	import WordDefinitionPanel from './WordDefinitionPanel.svelte';
 	import { FullscreenButton } from '$lib/components/index.js';
 	import { WordleGame } from './game.js';
 	import type { WordleGameProps, WordleResult } from './types.js';
@@ -179,7 +180,11 @@
 	};
 </script>
 
-<div class="wordle-game flex min-h-full flex-col" class:fullscreen={isFullscreen}>
+<div
+	class="wordle-game flex min-h-full flex-col"
+	class:fullscreen={isFullscreen}
+	class:has-side-panel={gameState?.isCompleted && !isFullscreen}
+>
 	{#if isLoading}
 		<div class="flex flex-1 items-center justify-center">
 			<div class="text-center">
@@ -271,12 +276,27 @@
 
 	<!-- Fullscreen Button -->
 	<FullscreenButton onFullscreenChange={handleFullscreenChange} />
+
+	<!-- Word Definition Side Panel -->
+	{#if gameState}
+		<WordDefinitionPanel
+			targetWord={gameState.targetWord}
+			gameStatus={gameState.gameStatus}
+			isVisible={gameState.isCompleted && !isFullscreen}
+		/>
+	{/if}
 </div>
 
 <style>
 	.wordle-game {
 		max-width: 100%;
 		height: 100%;
+		transition: margin-right 0.3s ease-in-out;
+	}
+
+	/* Layout adjustments when side panel is visible */
+	.wordle-game.has-side-panel {
+		margin-right: 320px; /* Width of side panel */
 	}
 
 	/* Fullscreen mode styling */
@@ -290,6 +310,7 @@
 		background: var(--background);
 		padding: 1rem;
 		min-height: 100vh;
+		margin-right: 0; /* Reset margin in fullscreen */
 	}
 
 	/* Better spacing in fullscreen */
@@ -298,5 +319,13 @@
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
+	}
+
+	/* Mobile responsive adjustments */
+	@media (max-width: 768px) {
+		.wordle-game.has-side-panel {
+			margin-right: 0; /* No side margin on mobile */
+			margin-bottom: 50vh; /* Space for bottom panel */
+		}
 	}
 </style>

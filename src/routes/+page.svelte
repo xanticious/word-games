@@ -63,24 +63,6 @@
 			A collection of engaging word games built for unlimited play. No ads, no timers, no artificial
 			limits - just pure word game enjoyment.
 		</p>
-		<div class="text-muted-foreground flex flex-wrap items-center justify-center gap-4 text-sm">
-			<span class="inline-flex items-center gap-2">
-				<span class="text-green-500">✓</span>
-				No Ads
-			</span>
-			<span class="inline-flex items-center gap-2">
-				<span class="text-green-500">✓</span>
-				Unlimited Play
-			</span>
-			<span class="inline-flex items-center gap-2">
-				<span class="text-green-500">✓</span>
-				Accessibility First
-			</span>
-			<span class="inline-flex items-center gap-2">
-				<span class="text-green-500">✓</span>
-				Privacy Focused
-			</span>
-		</div>
 	</section>
 
 	<!-- Recent games section -->

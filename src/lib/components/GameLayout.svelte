@@ -44,7 +44,7 @@
 			<div class="flex items-center gap-4">
 				<button
 					onclick={handleExit}
-					class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+					class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 					aria-label="Exit game"
 				>
 					<svg
@@ -64,14 +64,7 @@
 				</button>
 				<div>
 					<h1 class="text-lg font-semibold">{config.name}</h1>
-					<p class="text-muted-foreground text-sm capitalize">{difficulty} difficulty</p>
 				</div>
-			</div>
-
-			<div class="flex items-center gap-2">
-				<span class="text-muted-foreground text-sm">
-					{config.estimatedPlayTime}min play
-				</span>
 			</div>
 		</div>
 	</header>
@@ -80,29 +73,6 @@
 	<main class="container flex-1 py-6">
 		{@render children()}
 	</main>
-
-	<!-- Game Footer -->
-	<footer class="border-border bg-muted/50 border-t py-4">
-		<div class="text-muted-foreground container flex items-center justify-between text-sm">
-			<div class="flex items-center gap-4">
-				<span>{config.category.replace('-', ' ')}</span>
-				<span>•</span>
-				<span>{config.description}</span>
-			</div>
-
-			{#if config.features.length > 0}
-				<div class="flex items-center gap-2">
-					{#each config.features.slice(0, 3) as feature}
-						<span
-							class="bg-secondary text-secondary-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-						>
-							{feature}
-						</span>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</footer>
 </div>
 
 <style>

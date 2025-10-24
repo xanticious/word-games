@@ -28,8 +28,8 @@
 
 	// Navigation items
 	const navItems = [
-		{ label: 'Home', href: base || '/', icon: '🏠' },
-		{ label: 'Games', href: `${base || ''}/#games`, icon: '🎮' }
+		{ label: 'Home', href: base || '/' },
+		{ label: 'Games', href: `${base || ''}/#games` }
 	];
 </script>
 
@@ -42,7 +42,6 @@
 		<!-- Logo and title -->
 		<div class="flex items-center gap-4">
 			<a href={base || '/'} class="flex items-center gap-2 transition-opacity hover:opacity-80">
-				<div class="text-2xl">🎯</div>
 				<div class="text-foreground text-lg font-bold">Word Games</div>
 			</a>
 
@@ -65,7 +64,6 @@
 						? 'text-foreground'
 						: ''}"
 				>
-					<span class="text-base">{item.icon}</span>
 					{item.label}
 				</a>
 			{/each}
@@ -84,7 +82,7 @@
 			<!-- Settings button -->
 			<button
 				onclick={toggleSettingsModal}
-				class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+				class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 				aria-label="Open settings"
 			>
 				<svg
@@ -107,7 +105,7 @@
 
 			<!-- Mobile menu button -->
 			<button
-				class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 md:hidden"
+				class="ring-offset-background focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 md:hidden"
 				aria-label="Open mobile menu"
 			>
 				<svg
@@ -141,7 +139,6 @@
 							? 'text-foreground'
 							: ''}"
 					>
-						<span class="text-lg">{item.icon}</span>
 						{item.label}
 					</a>
 				{/each}
