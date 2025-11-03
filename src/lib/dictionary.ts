@@ -6,6 +6,7 @@
  */
 
 import { base } from '$app/paths';
+import { COMMON_WORDS_5 } from './data/common-words-5.js';
 
 export interface WordEntry {
 	word: string;
@@ -25,6 +26,16 @@ export interface DefinitionEntry {
 	definitions: string[];
 	partOfSpeech?: string;
 	pronunciation?: string;
+}
+
+export interface WiktionaryDefinition {
+	partOfSpeech: string;
+	language: string;
+	definitions: Array<{
+		definition: string;
+		examples?: string[];
+		parsedExamples?: Array<{ example: string }>;
+	}>;
 }
 export interface DifficultyWordLists {
 	easy: WordEntry[];
@@ -131,6 +142,26 @@ export class GameDictionary {
 	}
 
 	/**
+	 * Get common words by specific length (curated lists for game targets)
+	 * Currently only supports length 5
+	 */
+	getCommonWords(length: number): string[] {
+		if (length === 5) {
+			return COMMON_WORDS_5;
+		}
+		// For other lengths, return empty array for now
+		// This will be expanded as we add more common word lists
+		return [];
+	}
+
+	/**
+	 * Check if common words are available for a specific length
+	 */
+	hasCommonWords(length: number): boolean {
+		return length === 5;
+	}
+
+	/**
 	 * Get words by length range
 	 */
 	getWordsByLengthRange(minLength: number, maxLength: number): string[] {
@@ -234,7 +265,63 @@ export class GameDictionary {
 	}
 
 	/**
-	 * Get definition for a word
+	 * Fetch definition from Wiktionary API
+	 */
+	private async fetchFromWiktionary(word: string): Promise<DefinitionEntry | null> {
+		try {
+			const response = await fetch(
+				`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word.toLowerCase())}`
+			);
+
+			if (!response.ok) {
+				return null;
+			}
+
+			const data: Record<string, WiktionaryDefinition[]> = await response.json();
+
+			// Extract English definitions
+			const englishDefs = data.en;
+			if (!englishDefs || englishDefs.length === 0) {
+				return null;
+			}
+
+			// Parse and clean definitions
+			const definitions: string[] = [];
+			let primaryPartOfSpeech = '';
+
+			for (const section of englishDefs) {
+				if (!primaryPartOfSpeech && section.partOfSpeech) {
+					primaryPartOfSpeech = section.partOfSpeech;
+				}
+
+				for (const def of section.definitions) {
+					if (def.definition) {
+						// Strip HTML tags from definition
+						const cleanDef = def.definition.replace(/<[^>]*>/g, '').trim();
+						if (cleanDef) {
+							definitions.push(cleanDef);
+						}
+					}
+				}
+			}
+
+			if (definitions.length === 0) {
+				return null;
+			}
+
+			return {
+				word: word.toLowerCase(),
+				definitions,
+				partOfSpeech: primaryPartOfSpeech
+			};
+		} catch (error) {
+			console.error('Failed to fetch from Wiktionary:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Get definition for a word (checks local dictionary first, then Wiktionary)
 	 */
 	getDefinition(word: string): DefinitionEntry | null {
 		if (!this.definitions) {
@@ -242,6 +329,20 @@ export class GameDictionary {
 		}
 
 		return this.definitions.find((entry) => entry.word === word.toLowerCase()) || null;
+	}
+
+	/**
+	 * Get definition for a word with Wiktionary fallback
+	 */
+	async getDefinitionWithFallback(word: string): Promise<DefinitionEntry | null> {
+		// Try local dictionary first
+		const localDef = this.getDefinition(word);
+		if (localDef) {
+			return localDef;
+		}
+
+		// Fall back to Wiktionary
+		return await this.fetchFromWiktionary(word);
 	}
 
 	/**

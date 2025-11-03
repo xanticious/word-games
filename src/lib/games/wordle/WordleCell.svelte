@@ -21,19 +21,6 @@
 		present: 'border-yellow-500 bg-yellow-500 text-white',
 		absent: 'border-gray-400 bg-gray-400 text-white'
 	};
-
-	// Animation class
-	let animationClass = $state('');
-
-	// Trigger animation only when explicitly requested and cell has a state
-	$effect(() => {
-		if (animate && cellState !== 'unused') {
-			animationClass = 'animate-flip';
-			setTimeout(() => {
-				animationClass = '';
-			}, 600);
-		}
-	});
 </script>
 
 <div
@@ -41,7 +28,6 @@
 		wordle-cell
 		${stateClasses[cellState]}
 		${isActive ? 'border-foreground border-2' : 'border'}
-		${animationClass}
 		relative flex h-14 w-14 items-center justify-center
 		text-xl font-bold uppercase transition-all duration-200
 		select-none
@@ -57,22 +43,6 @@
 		/* Ensure consistent sizing */
 		min-width: 3.5rem;
 		min-height: 3.5rem;
-	}
-
-	@keyframes flip {
-		0% {
-			transform: rotateX(0);
-		}
-		50% {
-			transform: rotateX(-90deg);
-		}
-		100% {
-			transform: rotateX(0);
-		}
-	}
-
-	.animate-flip {
-		animation: flip 0.6s ease-in-out;
 	}
 
 	/* Responsive sizing */

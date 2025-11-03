@@ -45,11 +45,22 @@ export interface WordleConfig {
 	maxGuesses: number;
 	hardMode: boolean;
 	difficulty: 'easy' | 'medium' | 'hard';
+	targetWords: 'common' | 'all'; // Filter word pool
+	rescueMode: boolean; // Auto-fill and submit first guess
+	easyMode: boolean; // Show candidate list
 }
 
 export interface WordleGameProps {
 	difficulty?: 'easy' | 'medium' | 'hard';
 	hardMode?: boolean;
+	targetWords?: 'common' | 'all';
+	rescueMode?: boolean;
+	easyMode?: boolean;
 	onGameComplete?: (result: WordleResult) => void;
 	onGameExit?: () => void;
+}
+
+export interface WordleCandidate {
+	word: string;
+	matchScore: number; // How well it fits known clues
 }

@@ -7,13 +7,18 @@
 	import WordleGrid from './WordleGrid.svelte';
 	import WordleKeyboard from './WordleKeyboard.svelte';
 	import WordDefinitionPanel from './WordDefinitionPanel.svelte';
+	import CandidateWordsPanel from './CandidateWordsPanel.svelte';
 	import { FullscreenButton } from '$lib/components/index.js';
 	import { WordleGame } from './game.js';
+	import { rescueMode } from '$lib/stores/guessTheWordSettings.js';
 	import type { WordleGameProps, WordleResult } from './types.js';
 
 	let {
 		difficulty = 'medium',
 		hardMode = false,
+		targetWords = 'common',
+		rescueMode: rescueModeEnabled = false,
+		easyMode = false,
 		onGameComplete,
 		onGameExit
 	}: WordleGameProps = $props();
@@ -53,11 +58,21 @@
 				wordLength: 5,
 				maxGuesses: 6,
 				hardMode,
-				difficulty
+				difficulty,
+				targetWords,
+				rescueMode: rescueModeEnabled,
+				easyMode
 			});
 
 			await game.initialize();
-			gameState = game.getState();
+
+			// Apply rescue mode if enabled
+			if (rescueModeEnabled) {
+				const previousTarget = rescueMode.getPreviousTarget();
+				game.applyRescueMode(previousTarget);
+			}
+
+			gameState = easyMode ? game.getStateWithCandidates() : game.getState();
 			isLoading = false;
 		} catch (error) {
 			console.error('Failed to initialize Wordle:', error);
@@ -72,7 +87,7 @@
 
 		const success = game.addLetter(key);
 		if (success) {
-			gameState = game.getState();
+			gameState = easyMode ? game.getStateWithCandidates() : game.getState();
 			clearMessage();
 		}
 	}
@@ -82,7 +97,7 @@
 
 		const success = game.deleteLetter();
 		if (success) {
-			gameState = game.getState();
+			gameState = easyMode ? game.getStateWithCandidates() : game.getState();
 			clearMessage();
 		}
 	}
@@ -91,7 +106,7 @@
 		if (!game || gameState?.gameStatus !== 'playing') return;
 
 		const result = game.submitGuess();
-		gameState = game.getState();
+		gameState = easyMode ? game.getStateWithCandidates() : game.getState();
 
 		if (!result.success) {
 			showMessage(result.message || 'Invalid guess', 'error');
@@ -107,6 +122,11 @@
 
 	function handleGameFinish() {
 		const result = game.getResult();
+
+		// Save target word for rescue mode
+		if (rescueModeEnabled) {
+			rescueMode.setPreviousTarget(gameState.targetWord);
+		}
 
 		if (gameState.gameStatus === 'won') {
 			showMessage(
@@ -135,6 +155,26 @@
 		message = '';
 	}
 
+	function handleCandidateWordClick(word: string) {
+		if (!game || gameState?.gameStatus !== 'playing') return;
+
+		// Clear current guess
+		while (gameState.currentGuess.length > 0) {
+			game.deleteLetter();
+		}
+
+		// Fill in the clicked word
+		for (const letter of word) {
+			game.addLetter(letter);
+		}
+
+		// Update state to show the typed word
+		gameState = easyMode ? game.getStateWithCandidates() : game.getState();
+
+		// Auto-submit the word
+		handleEnter();
+	}
+
 	async function handleRestart() {
 		if (!game) return;
 
@@ -143,7 +183,14 @@
 
 		try {
 			await game.restart();
-			gameState = game.getState();
+
+			// Apply rescue mode if enabled
+			if (rescueModeEnabled) {
+				const previousTarget = rescueMode.getPreviousTarget();
+				game.applyRescueMode(previousTarget);
+			}
+
+			gameState = easyMode ? game.getStateWithCandidates() : game.getState();
 		} catch (error) {
 			console.error('Failed to restart game:', error);
 			errorMessage = 'Failed to restart the game. Please try again.';
@@ -184,7 +231,17 @@
 	class="wordle-game flex min-h-full flex-col"
 	class:fullscreen={isFullscreen}
 	class:has-side-panel={gameState?.isCompleted && !isFullscreen}
+	class:has-candidate-panel={easyMode && !isFullscreen}
 >
+	<!-- Easy Mode Candidate Panel -->
+	{#if easyMode && gameState}
+		<CandidateWordsPanel
+			candidates={gameState.candidates || []}
+			isVisible={true}
+			onWordClick={handleCandidateWordClick}
+		/>
+	{/if}
+
 	{#if isLoading}
 		<div class="flex flex-1 items-center justify-center">
 			<div class="text-center">
@@ -209,7 +266,7 @@
 	{:else if gameState}
 		<!-- Game Header -->
 		<div class="border-b py-4 text-center">
-			<h1 class="text-2xl font-bold">Wordle</h1>
+			<h1 class="text-2xl font-bold">Guess the Word</h1>
 			<div class="text-muted-foreground mt-1 text-sm">
 				Guess {gameState.currentRow + 1} of {gameState.maxGuesses}
 				{#if hardMode}
@@ -282,7 +339,8 @@
 		<WordDefinitionPanel
 			targetWord={gameState.targetWord}
 			gameStatus={gameState.gameStatus}
-			isVisible={gameState.isCompleted && !isFullscreen}
+			isVisible={true}
+			guessedWords={gameState.guesses.filter((g: any) => g.isSubmitted).map((g: any) => g.word)}
 		/>
 	{/if}
 </div>
@@ -291,12 +349,25 @@
 	.wordle-game {
 		max-width: 100%;
 		height: 100%;
-		transition: margin-right 0.3s ease-in-out;
+		transition:
+			margin-right 0.3s ease-in-out,
+			margin-left 0.3s ease-in-out;
 	}
 
 	/* Layout adjustments when side panel is visible */
 	.wordle-game.has-side-panel {
-		margin-right: 320px; /* Width of side panel */
+		margin-right: 320px; /* Width of definition panel */
+	}
+
+	/* Layout adjustments when candidate panel is visible */
+	.wordle-game.has-candidate-panel {
+		margin-left: 280px; /* Width of candidate panel */
+	}
+
+	/* Both panels visible */
+	.wordle-game.has-candidate-panel.has-side-panel {
+		margin-left: 280px;
+		margin-right: 320px;
 	}
 
 	/* Fullscreen mode styling */
@@ -311,6 +382,12 @@
 		padding: 1rem;
 		min-height: 100vh;
 		margin-right: 0; /* Reset margin in fullscreen */
+		margin-left: 0;
+	}
+
+	/* Keep candidate panel visible in fullscreen */
+	.wordle-game.fullscreen.has-candidate-panel {
+		margin-left: 280px; /* Width of candidate panel */
 	}
 
 	/* Better spacing in fullscreen */
@@ -322,10 +399,21 @@
 	}
 
 	/* Mobile responsive adjustments */
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.wordle-game.has-side-panel {
-			margin-right: 0; /* No side margin on mobile */
+			margin-right: 0;
 			margin-bottom: 50vh; /* Space for bottom panel */
+		}
+
+		.wordle-game.has-candidate-panel {
+			margin-left: 0;
+			margin-bottom: 40vh; /* Space for candidate panel */
+		}
+
+		.wordle-game.has-candidate-panel.has-side-panel {
+			margin-left: 0;
+			margin-right: 0;
+			margin-bottom: 90vh; /* Space for both panels */
 		}
 	}
 </style>

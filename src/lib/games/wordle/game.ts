@@ -13,6 +13,18 @@ import type {
 } from './types.js';
 import { GameDictionary } from '$lib/dictionary.js';
 
+/**
+ * Constraint structure for tracking letter placement and occurrence rules
+ */
+interface WordConstraints {
+	// Position constraints: which letter MUST be at each position (null = no constraint)
+	posMustContain: { [position: number]: string | null };
+	// Position exclusions: which letters MUST NOT be at each position
+	posMustNotContain: { [position: number]: string[] };
+	// Letter occurrence constraints: min/max count for each letter
+	allowedOccurrences: { [letter: string]: { min: number; max: number } };
+}
+
 export class WordleGame {
 	private state: WordleState;
 	private dictionary: GameDictionary;
@@ -76,40 +88,66 @@ export class WordleGame {
 		}
 	}
 
+	/**
+	 * Apply rescue mode - auto-fill and submit first guess
+	 * @param previousTarget Previous round's target word (optional)
+	 */
+	applyRescueMode(previousTarget: string | null = null): void {
+		if (!this.config.rescueMode) return;
+		if (this.state.currentRow !== 0) return; // Only apply on first guess
+		if (!this.initialized) return;
+
+		let firstGuess: string;
+
+		// Get valid words for validation
+		let validWords: string[];
+		if (this.config.targetWords === 'common') {
+			validWords = this.dictionary.getCommonWords(this.config.wordLength);
+		} else {
+			validWords = this.dictionary.getWordsByLength(this.config.wordLength);
+		}
+
+		// Use previous target if available and valid
+		if (previousTarget && validWords.includes(previousTarget.toLowerCase())) {
+			firstGuess = previousTarget.toLowerCase();
+		} else {
+			// Pick a random word from valid words
+			const randomIndex = Math.floor(Math.random() * validWords.length);
+			firstGuess = validWords[randomIndex];
+		}
+
+		// Auto-fill letters
+		for (const letter of firstGuess) {
+			this.addLetter(letter);
+		}
+
+		// Auto-submit the first guess
+		this.submitGuess();
+	}
+
 	private async selectTargetWord(): Promise<string> {
 		// Load dictionary if needed
 		await this.dictionary.loadDictionaries();
 
-		// Get words by difficulty and length - ensure exactly 5 letters
-		const allWordsOfLength = this.dictionary.getWordsByLength(5); // Force 5 letters
+		let candidateWords: string[];
 
-		const words = allWordsOfLength.filter((word) => {
-			// Filter by difficulty based on word commonality
-			const difficulty = this.getWordDifficulty(word);
-			return difficulty === this.config.difficulty && word.length === 5; // Double-check length
-		});
-
-		if (words.length === 0) {
-			// Fallback to any 5-letter word
-			const fallbackWords = this.dictionary.getWordsByLength(5);
-			const selectedWord =
-				fallbackWords[Math.floor(Math.random() * fallbackWords.length)].toLowerCase();
-			return selectedWord;
+		if (this.config.targetWords === 'common') {
+			// Use curated list of common words
+			candidateWords = this.dictionary.getCommonWords(this.config.wordLength);
+			if (candidateWords.length === 0) {
+				throw new Error(`No common words available for length ${this.config.wordLength}`);
+			}
+		} else {
+			// Use all valid words from dictionary
+			candidateWords = this.dictionary.getWordsByLength(this.config.wordLength);
+			if (candidateWords.length === 0) {
+				throw new Error(`No words available for length ${this.config.wordLength}`);
+			}
 		}
 
-		const selectedWord = words[Math.floor(Math.random() * words.length)].toLowerCase();
-		return selectedWord;
-	}
-
-	private getWordDifficulty(word: string): 'easy' | 'medium' | 'hard' {
-		// Simple heuristic based on word length and common letters
-		const commonLetters = new Set(['a', 'e', 'i', 'o', 'u', 'r', 's', 't', 'l', 'n']);
-		const commonCount = word.split('').filter((letter) => commonLetters.has(letter)).length;
-		const ratio = commonCount / word.length;
-
-		if (ratio > 0.6) return 'easy';
-		if (ratio > 0.4) return 'medium';
-		return 'hard';
+		// Random selection
+		const selectedWord = candidateWords[Math.floor(Math.random() * candidateWords.length)];
+		return selectedWord.toLowerCase();
 	}
 
 	/**
@@ -145,11 +183,19 @@ export class WordleGame {
 		}
 
 		if (this.state.currentGuess.length !== this.config.wordLength) {
-			return { success: false, message: 'Word must be 5 letters long' };
+			return { success: false, message: `Word must be ${this.config.wordLength} letters long` };
 		}
 
-		if (!this.dictionary.isValidWord(this.state.currentGuess)) {
-			return { success: false, message: 'Not a valid word' };
+		// Validate word using appropriate word list
+		let validWords: string[];
+		if (this.config.targetWords === 'common') {
+			validWords = this.dictionary.getCommonWords(this.config.wordLength);
+		} else {
+			validWords = this.dictionary.getWordsByLength(this.config.wordLength);
+		}
+
+		if (!validWords.includes(this.state.currentGuess.toLowerCase())) {
+			return { success: false, message: 'Not in word list' };
 		}
 
 		// Check hard mode constraints
@@ -225,29 +271,169 @@ export class WordleGame {
 		this.state.currentGuess = '';
 	}
 
-	private checkHardModeViolation(guess: string): string | null {
-		// In hard mode, any revealed hints must be used in subsequent guesses
-		const previousGuesses = this.state.guesses.slice(0, this.state.currentRow);
+	/**
+	 * Build constraint structure from all submitted guesses
+	 */
+	private buildConstraints(): WordConstraints {
+		const constraints: WordConstraints = {
+			posMustContain: {},
+			posMustNotContain: {},
+			allowedOccurrences: {}
+		};
 
-		for (const prevGuess of previousGuesses) {
-			if (!prevGuess.isSubmitted) continue;
+		// Initialize position arrays
+		for (let i = 0; i < this.config.wordLength; i++) {
+			constraints.posMustContain[i] = null;
+			constraints.posMustNotContain[i] = [];
+		}
 
-			for (let i = 0; i < prevGuess.letters.length; i++) {
-				const letter = prevGuess.letters[i];
+		// Initialize all letters with default range (0 to wordLength)
+		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+		for (const letter of alphabet) {
+			constraints.allowedOccurrences[letter] = { min: 0, max: this.config.wordLength };
+		}
 
-				if (letter.state === 'correct') {
-					if (guess[i] !== letter.letter) {
-						return `${i + 1} letter must be ${letter.letter.toUpperCase()}`;
+		// Track letter constraints - we'll refine these as we process guesses
+		const letterConstraints = new Map<string, { min: number; max: number }>();
+
+		// Process each guess individually to determine what it tells us
+		for (const guess of this.state.guesses) {
+			if (!guess.isSubmitted) continue;
+
+			// Count occurrences of each letter in THIS guess by state
+			const letterStatesInGuess = new Map<
+				string,
+				{ greenCount: number; yellowCount: number; grayCount: number }
+			>();
+
+			for (let i = 0; i < guess.letters.length; i++) {
+				const { letter, state } = guess.letters[i];
+
+				if (!letterStatesInGuess.has(letter)) {
+					letterStatesInGuess.set(letter, { greenCount: 0, yellowCount: 0, grayCount: 0 });
+				}
+
+				const letterState = letterStatesInGuess.get(letter)!;
+				if (state === 'correct') {
+					letterState.greenCount++;
+					// Green letter must be at this position
+					constraints.posMustContain[i] = letter;
+				} else if (state === 'present') {
+					letterState.yellowCount++;
+					// Yellow letter must NOT be at this position
+					if (!constraints.posMustNotContain[i].includes(letter)) {
+						constraints.posMustNotContain[i].push(letter);
 					}
-				} else if (letter.state === 'present') {
-					if (!guess.includes(letter.letter)) {
-						return `Guess must contain ${letter.letter.toUpperCase()}`;
+				} else if (state === 'absent') {
+					letterState.grayCount++;
+				}
+			}
+
+			// For each letter in this guess, update the occurrence constraints
+			for (const [letter, states] of letterStatesInGuess) {
+				const greenYellowCount = states.greenCount + states.yellowCount;
+
+				if (!letterConstraints.has(letter)) {
+					letterConstraints.set(letter, { min: 0, max: this.config.wordLength });
+				}
+
+				const currentConstraint = letterConstraints.get(letter)!;
+
+				if (greenYellowCount > 0) {
+					// This guess tells us there are AT LEAST greenYellowCount instances
+					currentConstraint.min = Math.max(currentConstraint.min, greenYellowCount);
+
+					// If we ALSO saw gray instances in this guess, it means we found ALL instances
+					if (states.grayCount > 0) {
+						// The exact count is the number of green + yellow
+						currentConstraint.max = Math.min(currentConstraint.max, greenYellowCount);
+					}
+				} else if (states.grayCount > 0) {
+					// All instances in this guess were gray - letter doesn't appear in target
+					currentConstraint.min = 0;
+					currentConstraint.max = 0;
+
+					// Exclude from all positions
+					for (let i = 0; i < this.config.wordLength; i++) {
+						if (!constraints.posMustNotContain[i].includes(letter)) {
+							constraints.posMustNotContain[i].push(letter);
+						}
 					}
 				}
 			}
 		}
 
+		// Copy the refined constraints to the result
+		for (const [letter, constraint] of letterConstraints) {
+			constraints.allowedOccurrences[letter] = constraint;
+		}
+
+		// Set default for letters we haven't seen
+		for (const letter of alphabet) {
+			if (!letterConstraints.has(letter)) {
+				constraints.allowedOccurrences[letter] = { min: 0, max: this.config.wordLength };
+			}
+		}
+
+		return constraints;
+	}
+
+	private checkHardModeViolation(guess: string): string | null {
+		// In hard mode, any revealed hints must be used in subsequent guesses
+		const constraints = this.buildConstraints();
+
+		// Check position constraints (green letters)
+		for (let i = 0; i < this.config.wordLength; i++) {
+			const mustBe = constraints.posMustContain[i];
+			if (mustBe !== null && guess[i] !== mustBe) {
+				return `${this.getOrdinal(i + 1)} letter must be ${mustBe.toUpperCase()}`;
+			}
+		}
+
+		// Check position exclusions (yellow and gray letters)
+		for (let i = 0; i < this.config.wordLength; i++) {
+			const mustNotBe = constraints.posMustNotContain[i];
+			if (mustNotBe.includes(guess[i])) {
+				return `${this.getOrdinal(i + 1)} letter cannot be ${guess[i].toUpperCase()}`;
+			}
+		}
+
+		// Check letter occurrence constraints (handles repeated letters and gray letters)
+		const guessCounts = new Map<string, number>();
+		for (const letter of guess) {
+			guessCounts.set(letter, (guessCounts.get(letter) || 0) + 1);
+		}
+
+		for (const [letter, count] of guessCounts) {
+			const { min, max } = constraints.allowedOccurrences[letter];
+
+			if (count < min) {
+				return `Guess must contain at least ${min} ${letter.toUpperCase()}${min > 1 ? "'s" : ''}`;
+			}
+
+			if (count > max) {
+				if (max === 0) {
+					return `Guess cannot contain ${letter.toUpperCase()}`;
+				} else {
+					return `Guess cannot contain more than ${max} ${letter.toUpperCase()}${max > 1 ? "'s" : ''}`;
+				}
+			}
+		}
+
+		// Check for letters that must appear but don't
+		for (const [letter, { min }] of Object.entries(constraints.allowedOccurrences)) {
+			if (min > 0 && !guessCounts.has(letter)) {
+				return `Guess must contain ${letter.toUpperCase()}`;
+			}
+		}
+
 		return null;
+	}
+
+	private getOrdinal(n: number): string {
+		const s = ['th', 'st', 'nd', 'rd'];
+		const v = n % 100;
+		return n + (s[(v - 20) % 10] || s[v] || s[0]);
 	}
 
 	private checkGameCompletion(): void {
@@ -326,9 +512,116 @@ export class WordleGame {
 	}
 
 	/**
+	 * Get list of valid candidate words based on current clues (for Easy Mode)
+	 */
+	getCandidateWords(): Array<{ word: string; matchScore: number }> {
+		if (!this.config.easyMode) return [];
+
+		// Get all valid words based on targetWords setting
+		let allWords: string[];
+		if (this.config.targetWords === 'common') {
+			allWords = this.dictionary.getCommonWords(this.config.wordLength);
+		} else {
+			allWords = this.dictionary.getWordsByLength(this.config.wordLength);
+		}
+
+		const candidates: Array<{ word: string; matchScore: number }> = [];
+
+		// Build constraints from submitted guesses
+		const constraints = this.buildConstraints();
+
+		// Filter words by constraints
+		for (const word of allWords) {
+			let isValid = true;
+			let matchScore = 0;
+
+			// Check position constraints (green letters)
+			for (let i = 0; i < this.config.wordLength; i++) {
+				const mustBe = constraints.posMustContain[i];
+				if (mustBe !== null && word[i] !== mustBe) {
+					isValid = false;
+					break;
+				}
+				if (mustBe !== null) {
+					matchScore += 20;
+				}
+			}
+
+			if (!isValid) continue;
+
+			// Check position exclusions (yellow and gray letters)
+			for (let i = 0; i < this.config.wordLength; i++) {
+				const mustNotBe = constraints.posMustNotContain[i];
+				if (mustNotBe.includes(word[i])) {
+					isValid = false;
+					break;
+				}
+				if (mustNotBe.length > 0) {
+					matchScore += 5;
+				}
+			}
+
+			if (!isValid) continue;
+
+			// Check letter occurrence constraints (handles repeated letters)
+			const wordCounts = new Map<string, number>();
+			for (const letter of word) {
+				wordCounts.set(letter, (wordCounts.get(letter) || 0) + 1);
+			}
+
+			for (const [letter, count] of wordCounts) {
+				const { min, max } = constraints.allowedOccurrences[letter];
+
+				if (count < min || count > max) {
+					isValid = false;
+					break;
+				}
+
+				if (min > 0) {
+					matchScore += 10 * min;
+				}
+			}
+
+			if (!isValid) continue;
+
+			// Verify all required letters are present
+			for (const [letter, { min }] of Object.entries(constraints.allowedOccurrences)) {
+				if (min > 0 && (!wordCounts.has(letter) || wordCounts.get(letter)! < min)) {
+					isValid = false;
+					break;
+				}
+			}
+
+			if (isValid) {
+				candidates.push({ word, matchScore });
+			}
+		}
+
+		// Sort by match score (best matches first)
+		candidates.sort((a, b) => b.matchScore - a.matchScore);
+
+		return candidates;
+	}
+
+	/**
 	 * Get the current game state (read-only)
 	 */
 	getState(): Readonly<WordleState> {
+		return this.state;
+	}
+
+	/**
+	 * Get the current game state with candidates (for Easy Mode)
+	 */
+	getStateWithCandidates(): Readonly<WordleState> & {
+		candidates?: Array<{ word: string; matchScore: number }>;
+	} {
+		if (this.config.easyMode) {
+			return {
+				...this.state,
+				candidates: this.getCandidateWords()
+			};
+		}
 		return this.state;
 	}
 

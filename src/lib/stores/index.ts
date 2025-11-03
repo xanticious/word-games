@@ -2,6 +2,7 @@
 export * from './settings.js';
 export * from './themes.js';
 export * from './gameHistory.js';
+export * from './guessTheWordSettings.js';
 
 // Additional utility stores can be added here
 // export * from './notifications.js';

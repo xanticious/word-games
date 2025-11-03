@@ -9,7 +9,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
 		name: 'Guess the Word',
 		description: 'Wordle-style word guessing with colored feedback',
 		icon: '🎯',
-		route: '/wordle-config',
+		route: '/guess-the-word-config',
 		category: 'word-guessing',
 		difficulty: ['easy', 'medium', 'hard'],
 		features: ['Color Feedback', 'Virtual Keyboard', 'Hard Mode'],

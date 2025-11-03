@@ -4,10 +4,22 @@
 	import { getGameConfig } from '$lib/utils/gameConfigs.js';
 	import { settingsActions } from '$lib/stores/settings.js';
 	import { gameResults } from '$lib/stores/gameHistory.js';
+	import { guessTheWordSettings } from '$lib/stores/guessTheWordSettings.js';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import type { WordleResult } from '$lib/games/wordle/types.js';
 
 	const gameConfig = getGameConfig('wordle')!;
+
+	// Read from URL params or fallback to store
+	const params = $page.url.searchParams;
+
+	const targetWords =
+		(params.get('targetWords') as 'common' | 'all') || $guessTheWordSettings.targetWords;
+	const hardMode = params.get('hardMode') === 'true' || $guessTheWordSettings.hardMode;
+	const rescueMode = params.get('rescueMode') === 'true' || $guessTheWordSettings.rescueMode;
+	const easyMode = params.get('easyMode') === 'true' || $guessTheWordSettings.easyMode;
+	const wordLength = parseInt(params.get('wordLength') || '5') || $guessTheWordSettings.wordLength;
 
 	function handleGameExit() {
 		goto('/');
@@ -30,7 +42,10 @@
 <GameLayout config={gameConfig} onGameExit={handleGameExit}>
 	<WordleGame
 		difficulty="medium"
-		hardMode={false}
+		{hardMode}
+		{targetWords}
+		{rescueMode}
+		{easyMode}
 		onGameComplete={handleGameComplete}
 		onGameExit={handleGameExit}
 	/>
