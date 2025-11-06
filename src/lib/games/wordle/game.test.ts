@@ -14,7 +14,7 @@ describe('WordleGame - Hard Mode Validation', () => {
 
 	beforeEach(() => {
 		const config: WordleConfig = {
-			wordLength: 5,
+			wordLength: 5, // Can be changed to test different lengths
 			maxGuesses: 6,
 			difficulty: 'medium',
 			hardMode: true,
@@ -27,7 +27,7 @@ describe('WordleGame - Hard Mode Validation', () => {
 		// Manually set game as active and initialized to bypass dictionary loading
 		const gameState = game.getState() as any;
 		gameState.isActive = true;
-		gameState.targetWord = 'badge';
+		gameState.targetWord = 'badge'; // 5-letter word for testing
 
 		// Simulate initialized state
 		(game as any).initialized = true;
@@ -205,5 +205,69 @@ describe('WordleGame - Hard Mode Validation', () => {
 
 		expect(result.success).toBe(true);
 		// Should NOT say "must contain at least 2 R's"
+	});
+});
+
+describe('WordleGame - Variable Word Lengths', () => {
+	it('should support 3-letter words', () => {
+		const config: WordleConfig = {
+			wordLength: 3,
+			maxGuesses: 0, // Will use default
+			difficulty: 'medium',
+			hardMode: false,
+			easyMode: false,
+			rescueMode: false,
+			targetWords: 'all'
+		};
+		const game = new WordleGame(config);
+
+		// Verify max guesses is calculated correctly
+		const state = game.getState();
+		expect(state.maxGuesses).toBe(12);
+		expect(state.guesses.length).toBe(12);
+	});
+
+	it('should support 7-letter words', () => {
+		const config: WordleConfig = {
+			wordLength: 7,
+			maxGuesses: 0, // Will use default
+			difficulty: 'medium',
+			hardMode: false,
+			easyMode: false,
+			rescueMode: false,
+			targetWords: 'all'
+		};
+		const game = new WordleGame(config);
+
+		// Verify max guesses is calculated correctly
+		const state = game.getState();
+		expect(state.maxGuesses).toBe(6);
+		expect(state.guesses.length).toBe(6);
+	});
+
+	it('should calculate default max guesses based on word length', () => {
+		const testCases = [
+			{ wordLength: 3, expectedMaxGuesses: 12 },
+			{ wordLength: 4, expectedMaxGuesses: 7 },
+			{ wordLength: 5, expectedMaxGuesses: 6 },
+			{ wordLength: 6, expectedMaxGuesses: 6 },
+			{ wordLength: 7, expectedMaxGuesses: 6 }
+		];
+
+		for (const { wordLength, expectedMaxGuesses } of testCases) {
+			const config: WordleConfig = {
+				wordLength,
+				maxGuesses: 0, // Will use default
+				difficulty: 'medium',
+				hardMode: false,
+				easyMode: false,
+				rescueMode: false,
+				targetWords: 'all'
+			};
+			const game = new WordleGame(config);
+			const state = game.getState();
+
+			expect(state.maxGuesses).toBe(expectedMaxGuesses);
+		}
 	});
 });

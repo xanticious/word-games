@@ -22,12 +22,8 @@
 	function validateConfig(): boolean {
 		errorMessage = '';
 
-		// Check if common words are available for the selected length
-		const length = parseInt(wordLength);
-		if (targetWords === 'common' && !gameDictionary.hasCommonWords(length)) {
-			errorMessage = `Common words are not yet available for ${length}-letter words. Please choose "All Words" or select 5 letters.`;
-			return false;
-		}
+		// Note: Common words now fall back to all words for lengths other than 5
+		// No validation error needed since we have a fallback
 
 		return true;
 	}
@@ -110,13 +106,17 @@
 					<span class="text-foreground">All Words (even unusual words)</span>
 				</label>
 			</div>
+			<p class="text-muted-foreground mt-2 text-sm">
+				Note: At this time, common words is only available for 5-letter words. Other lengths will
+				use all words.
+			</p>
 		</div>
 
 		<!-- Word Length -->
 		<div class="mb-6">
 			<h3 class="text-foreground mb-3 text-lg font-semibold">Word Length</h3>
-			<div class="grid grid-cols-4 gap-2 sm:grid-cols-7">
-				{#each ['1', '2', '3', '4', '5', '6', '7'] as length}
+			<div class="grid grid-cols-5 gap-2">
+				{#each ['3', '4', '5', '6', '7'] as length}
 					<label class="flex cursor-pointer items-center justify-center">
 						<input
 							type="radio"
@@ -135,7 +135,7 @@
 				{/each}
 			</div>
 			<p class="text-muted-foreground mt-2 text-sm">
-				Choose how many letters the target word should have
+				Choose how many letters the target word should have (3-7)
 			</p>
 		</div>
 

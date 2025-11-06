@@ -62,18 +62,31 @@ export const guessTheWordSettings = createSettingsStore();
 
 /**
  * Store and retrieve the previous target word for Rescue Mode
+ * Storage is per word length to avoid confusion
  */
 export const rescueMode = {
-	getPreviousTarget(): string | null {
+	getPreviousTarget(wordLength: number): string | null {
 		if (!browser) return null;
-		return localStorage.getItem(RESCUE_MODE_STORAGE_KEY);
+		const key = `${RESCUE_MODE_STORAGE_KEY}-${wordLength}`;
+		return localStorage.getItem(key);
 	},
-	setPreviousTarget(word: string): void {
+	setPreviousTarget(word: string, wordLength: number): void {
 		if (!browser) return;
-		localStorage.setItem(RESCUE_MODE_STORAGE_KEY, word);
+		const key = `${RESCUE_MODE_STORAGE_KEY}-${wordLength}`;
+		localStorage.setItem(key, word);
 	},
-	clear(): void {
+	clear(wordLength?: number): void {
 		if (!browser) return;
-		localStorage.removeItem(RESCUE_MODE_STORAGE_KEY);
+		if (wordLength !== undefined) {
+			// Clear specific word length
+			const key = `${RESCUE_MODE_STORAGE_KEY}-${wordLength}`;
+			localStorage.removeItem(key);
+		} else {
+			// Clear all word lengths (3-7)
+			for (let length = 3; length <= 7; length++) {
+				const key = `${RESCUE_MODE_STORAGE_KEY}-${length}`;
+				localStorage.removeItem(key);
+			}
+		}
 	}
 };

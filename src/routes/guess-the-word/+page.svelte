@@ -11,15 +11,23 @@
 
 	const gameConfig = getGameConfig('wordle')!;
 
-	// Read from URL params or fallback to store
-	const params = $page.url.searchParams;
-
-	const targetWords =
-		(params.get('targetWords') as 'common' | 'all') || $guessTheWordSettings.targetWords;
-	const hardMode = params.get('hardMode') === 'true' || $guessTheWordSettings.hardMode;
-	const rescueMode = params.get('rescueMode') === 'true' || $guessTheWordSettings.rescueMode;
-	const easyMode = params.get('easyMode') === 'true' || $guessTheWordSettings.easyMode;
-	const wordLength = parseInt(params.get('wordLength') || '5') || $guessTheWordSettings.wordLength;
+	// Read from URL params or fallback to store (derived to handle SSR)
+	const targetWords = $derived(
+		($page.url.searchParams.get('targetWords') as 'common' | 'all') ||
+			$guessTheWordSettings.targetWords
+	);
+	const hardMode = $derived(
+		$page.url.searchParams.get('hardMode') === 'true' || $guessTheWordSettings.hardMode
+	);
+	const rescueMode = $derived(
+		$page.url.searchParams.get('rescueMode') === 'true' || $guessTheWordSettings.rescueMode
+	);
+	const easyMode = $derived(
+		$page.url.searchParams.get('easyMode') === 'true' || $guessTheWordSettings.easyMode
+	);
+	const wordLength = $derived(
+		parseInt($page.url.searchParams.get('wordLength') || '5') || $guessTheWordSettings.wordLength
+	);
 
 	function handleGameExit() {
 		goto('/');
@@ -42,6 +50,7 @@
 <GameLayout config={gameConfig} onGameExit={handleGameExit}>
 	<WordleGame
 		difficulty="medium"
+		{wordLength}
 		{hardMode}
 		{targetWords}
 		{rescueMode}

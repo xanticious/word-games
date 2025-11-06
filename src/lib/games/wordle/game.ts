@@ -32,10 +32,24 @@ export class WordleGame {
 	private initialized: boolean = false;
 
 	constructor(config: WordleConfig) {
-		// Ensure Wordle is always 5 letters
-		this.config = { ...config, wordLength: 5 };
+		// Calculate max guesses based on word length if not specified
+		// Length 3: 12 guesses, Length 4: 7 guesses, Length 5+: 6 guesses
+		const defaultMaxGuesses = this.calculateMaxGuesses(config.wordLength);
+		this.config = {
+			...config,
+			maxGuesses: config.maxGuesses > 0 ? config.maxGuesses : defaultMaxGuesses
+		};
 		this.dictionary = new GameDictionary();
 		this.state = this.createInitialState();
+	}
+
+	/**
+	 * Calculate default max guesses based on word length
+	 */
+	private calculateMaxGuesses(wordLength: number): number {
+		if (wordLength === 3) return 12;
+		if (wordLength === 4) return 7;
+		return 6; // length 5+
 	}
 
 	private createInitialState(): WordleState {

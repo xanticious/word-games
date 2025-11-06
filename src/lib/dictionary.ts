@@ -152,15 +152,14 @@ export class GameDictionary {
 
 	/**
 	 * Get common words by specific length (curated lists for game targets)
-	 * Currently only supports length 5
+	 * Currently only supports length 5, falls back to all words for other lengths
 	 */
 	getCommonWords(length: number): string[] {
 		if (length === 5) {
 			return COMMON_WORDS_5;
 		}
-		// For other lengths, return empty array for now
-		// This will be expanded as we add more common word lists
-		return [];
+		// For other lengths, fall back to all words of that length
+		return this.getWordsByLength(length);
 	}
 
 	/**

@@ -15,6 +15,7 @@
 
 	let {
 		difficulty = 'medium',
+		wordLength = 5,
 		hardMode = false,
 		targetWords = 'common',
 		rescueMode: rescueModeEnabled = false,
@@ -55,8 +56,8 @@
 	onMount(async () => {
 		try {
 			game = new WordleGame({
-				wordLength: 5,
-				maxGuesses: 6,
+				wordLength,
+				maxGuesses: 0, // 0 = use calculated default based on wordLength
 				hardMode,
 				difficulty,
 				targetWords,
@@ -68,7 +69,7 @@
 
 			// Apply rescue mode if enabled
 			if (rescueModeEnabled) {
-				const previousTarget = rescueMode.getPreviousTarget();
+				const previousTarget = rescueMode.getPreviousTarget(wordLength);
 				game.applyRescueMode(previousTarget);
 			}
 
@@ -125,7 +126,7 @@
 
 		// Save target word for rescue mode
 		if (rescueModeEnabled) {
-			rescueMode.setPreviousTarget(gameState.targetWord);
+			rescueMode.setPreviousTarget(gameState.targetWord, wordLength);
 		}
 
 		if (gameState.gameStatus === 'won') {
@@ -187,7 +188,7 @@
 
 			// Apply rescue mode if enabled
 			if (rescueModeEnabled) {
-				const previousTarget = rescueMode.getPreviousTarget();
+				const previousTarget = rescueMode.getPreviousTarget(wordLength);
 				game.applyRescueMode(previousTarget);
 			}
 
@@ -205,7 +206,11 @@
 
 		const result = game.getResult();
 		const pattern = result.details.pattern;
-		const solvedText = gameState.gameStatus === 'won' ? `${result.details.solvedIn}/6` : 'X/6';
+		const maxGuesses = gameState.maxGuesses;
+		const solvedText =
+			gameState.gameStatus === 'won'
+				? `${result.details.solvedIn}/${maxGuesses}`
+				: `X/${maxGuesses}`;
 
 		const shareText = `Wordle ${solvedText}\n\n${pattern}\n\nPlay at: ${window.location.origin}`;
 
@@ -286,7 +291,7 @@
 
 		<!-- Game Grid -->
 		<div class="flex flex-1 flex-col justify-center">
-			<WordleGrid guesses={gameState.guesses} currentRow={gameState.currentRow} wordLength={5} />
+			<WordleGrid guesses={gameState.guesses} currentRow={gameState.currentRow} {wordLength} />
 		</div>
 
 		<!-- Game Controls -->

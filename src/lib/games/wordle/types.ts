@@ -52,6 +52,7 @@ export interface WordleConfig {
 
 export interface WordleGameProps {
 	difficulty?: 'easy' | 'medium' | 'hard';
+	wordLength?: number;
 	hardMode?: boolean;
 	targetWords?: 'common' | 'all';
 	rescueMode?: boolean;
