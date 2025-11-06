@@ -236,8 +236,8 @@
 <div
 	class="wordle-game flex min-h-full flex-col"
 	class:fullscreen={isFullscreen}
-	class:has-side-panel={gameState?.isCompleted && !isFullscreen}
-	class:has-candidate-panel={easyMode && !isFullscreen}
+	class:has-side-panel={gameState}
+	class:has-candidate-panel={easyMode && gameState}
 >
 	<!-- Easy Mode Candidate Panel -->
 	{#if easyMode && gameState}
@@ -363,6 +363,7 @@
 	/* Layout adjustments when side panel is visible */
 	.wordle-game.has-side-panel {
 		margin-right: 320px; /* Width of definition panel */
+		margin-left: 320px; /* Center by balancing the right margin */
 	}
 
 	/* Layout adjustments when candidate panel is visible */
