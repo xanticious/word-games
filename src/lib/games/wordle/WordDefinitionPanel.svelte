@@ -27,6 +27,7 @@
 	let expandedWordIndex = $state<number>(0); // Index of currently expanded word
 	let dictionary: GameDictionary | null = null;
 	let lastProcessedKey = $state<string>(''); // Track what we've already processed
+	let clickedWords = $state<Set<string>>(new Set()); // Track words user has clicked on
 
 	// Initialize dictionary once
 	$effect(() => {
@@ -54,6 +55,7 @@
 			// Only rebuild if something actually changed
 			if (currentKey !== lastProcessedKey) {
 				lastProcessedKey = currentKey;
+				clickedWords = new Set(); // Reset clicked words when rebuilding
 				buildWordHistory();
 			}
 		}
@@ -127,6 +129,75 @@
 
 	function toggleWordExpansion(index: number) {
 		expandedWordIndex = expandedWordIndex === index ? -1 : index;
+	}
+
+	/**
+	 * Handle clicking on a word within a definition
+	 */
+	async function handleWordClick(word: string, event: MouseEvent) {
+		event.stopPropagation();
+
+		if (!dictionary) return;
+
+		// Normalize the word
+		const normalizedWord = word.toLowerCase().replace(/[^a-z]/g, '');
+		if (!normalizedWord || normalizedWord.length < 2) return;
+
+		// Don't add duplicates if already at the top
+		if (wordHistory.length > 0 && wordHistory[0].word === normalizedWord) {
+			return;
+		}
+
+		// Mark this word as clicked
+		clickedWords.add(normalizedWord);
+
+		// Create a new entry for this word
+		const newEntry: WordHistoryEntry = {
+			word: normalizedWord,
+			definition: null,
+			isLoading: true,
+			error: '',
+			isTarget: false
+		};
+
+		// Add to the beginning of history
+		wordHistory = [newEntry, ...wordHistory.slice(0, 9)]; // Keep max 10 words
+		expandedWordIndex = 0; // Expand the newly added word
+
+		// Load its definition
+		try {
+			const def = await dictionary.getDefinitionWithFallback(normalizedWord);
+
+			// Update the entry
+			wordHistory[0] = {
+				...wordHistory[0],
+				definition: def,
+				isLoading: false,
+				error: def ? '' : 'Definition not found'
+			};
+		} catch (err) {
+			console.error(`Error loading definition for ${normalizedWord}:`, err);
+			wordHistory[0] = {
+				...wordHistory[0],
+				isLoading: false,
+				error: 'Failed to load definition'
+			};
+		}
+	}
+
+	/**
+	 * Convert definition text to clickable words
+	 */
+	function makeDefinitionClickable(text: string): { word: string; isClickable: boolean }[] {
+		// Split by spaces and punctuation but keep the separators
+		const parts = text.split(/(\s+|[,;.!?()"])/);
+
+		return parts.map((part) => {
+			const cleanWord = part.replace(/[^a-zA-Z]/g, '').toLowerCase();
+			// Make it clickable if it's a word (not punctuation/whitespace) and not too short
+			const isClickable = cleanWord.length >= 3 && /^[a-z]+$/.test(cleanWord);
+			return { word: part, isClickable };
+		});
 	}
 </script>
 
@@ -249,45 +320,65 @@
 										<div class="py-4 text-center">
 											<div class="text-sm text-gray-500">{entry.error}</div>
 										</div>
-									{:else if entry.definition}
-										<div class="space-y-3">
-											{#if entry.definition.pronunciation}
-												<div class="text-sm text-gray-600">
-													<span class="font-medium">Pronunciation:</span>
-													<span class="ml-1 font-mono">{entry.definition.pronunciation}</span>
-												</div>
-											{/if}
+									{:else if entry.definition && entry.definition.sources}
+										<div class="space-y-4">
+											{#each entry.definition.sources as source}
+												<div class="space-y-2 border-b border-gray-100 pb-3 last:border-b-0">
+													<!-- Source Header -->
+													<h4 class="text-xs font-bold tracking-wide text-gray-500 uppercase">
+														{source.source === 'websters'
+															? "Webster's Unabridged Dictionary (~1913)"
+															: 'Wiktionary'}
+													</h4>
 
-											{#if entry.definition.partOfSpeech}
-												<div>
-													<span
-														class="inline-block rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
-													>
-														{entry.definition.partOfSpeech}
-													</span>
-												</div>
-											{/if}
-
-											<div class="space-y-2">
-												<h4 class="text-sm font-semibold text-gray-700">
-													Definition{entry.definition.definitions.length > 1 ? 's' : ''}:
-												</h4>
-												<div class="space-y-2">
-													{#each entry.definition.definitions.slice(0, 3) as def, defIndex}
-														<div class="text-sm leading-relaxed text-gray-600">
-															{#if entry.definition.definitions.length > 1}
-																<span class="font-medium">{defIndex + 1}.</span>
-															{/if}
-															{def}
-														</div>
-													{/each}
-													{#if entry.definition.definitions.length > 3}
-														<div class="text-xs text-gray-500 italic">
-															+{entry.definition.definitions.length - 3} more definition(s)
+													<!-- Pronunciation -->
+													{#if source.pronunciation}
+														<div class="text-sm text-gray-600">
+															<span class="font-medium">Pronunciation:</span>
+															<span class="ml-1 font-mono">{source.pronunciation}</span>
 														</div>
 													{/if}
+
+													<!-- Part of Speech -->
+													{#if source.partOfSpeech}
+														<div>
+															<span
+																class="inline-block rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
+															>
+																{source.partOfSpeech}
+															</span>
+														</div>
+													{/if}
+
+													<!-- Definitions with clickable words -->
+													<div class="space-y-2">
+														<h5 class="text-xs font-semibold text-gray-700">
+															Definition{source.definitions.length > 1 ? 's' : ''}:
+														</h5>
+														<div class="space-y-2">
+															{#each source.definitions as def, defIndex}
+																<div class="text-sm leading-relaxed text-gray-700">
+																	{#if source.definitions.length > 1}
+																		<span class="font-medium">{defIndex + 1}.</span>
+																	{/if}
+																	{#each makeDefinitionClickable(def) as part}
+																		{#if part.isClickable}
+																			<button
+																				class="clickable-word rounded px-0.5 transition-colors hover:bg-blue-100 hover:underline"
+																				onclick={(e) => handleWordClick(part.word, e)}
+																			>
+																				{part.word}
+																			</button>
+																		{:else}
+																			{part.word}
+																		{/if}
+																	{/each}
+																</div>
+															{/each}
+														</div>
+													</div>
 												</div>
-											</div>
+											{/each}
 										</div>
 									{:else}
 										<div class="py-4 text-center">
@@ -313,6 +404,20 @@
 	.word-definition-panel {
 		/* Ensure panel appears above other content */
 		transform: translateX(0);
+	}
+
+	.clickable-word {
+		cursor: pointer;
+		color: inherit;
+		text-decoration: none;
+		display: inline;
+		padding: 0 2px;
+		border-radius: 2px;
+	}
+
+	.clickable-word:hover {
+		background-color: rgb(219 234 254); /* bg-blue-100 */
+		text-decoration: underline;
 	}
 
 	/* Mobile responsive adjustments */

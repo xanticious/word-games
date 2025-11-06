@@ -21,9 +21,18 @@ export interface PhoneticEntry {
 	sounds: string[];
 }
 
+export interface DefinitionSource {
+	source: 'websters' | 'wiktionary';
+	definitions: string[];
+	partOfSpeech?: string;
+	pronunciation?: string;
+}
+
 export interface DefinitionEntry {
 	word: string;
-	definitions: string[];
+	sources: DefinitionSource[]; // Multiple sources (Webster's, Wiktionary, etc.)
+	// Legacy support - will be deprecated
+	definitions?: string[];
 	partOfSpeech?: string;
 	pronunciation?: string;
 }
@@ -311,8 +320,13 @@ export class GameDictionary {
 
 			return {
 				word: word.toLowerCase(),
-				definitions,
-				partOfSpeech: primaryPartOfSpeech
+				sources: [
+					{
+						source: 'wiktionary',
+						definitions,
+						partOfSpeech: primaryPartOfSpeech
+					}
+				]
 			};
 		} catch (error) {
 			console.error('Failed to fetch from Wiktionary:', error);
@@ -321,28 +335,64 @@ export class GameDictionary {
 	}
 
 	/**
-	 * Get definition for a word (checks local dictionary first, then Wiktionary)
+	 * Get definition for a word (checks local dictionary first)
 	 */
 	getDefinition(word: string): DefinitionEntry | null {
 		if (!this.definitions) {
 			throw new Error('Dictionary not loaded');
 		}
 
-		return this.definitions.find((entry) => entry.word === word.toLowerCase()) || null;
+		const entry = this.definitions.find((entry) => entry.word === word.toLowerCase());
+		if (!entry) return null;
+
+		// Convert old format to new format if needed
+		if (!entry.sources && entry.definitions) {
+			return {
+				word: entry.word,
+				sources: [
+					{
+						source: 'websters',
+						definitions: entry.definitions,
+						partOfSpeech: entry.partOfSpeech,
+						pronunciation: entry.pronunciation
+					}
+				]
+			};
+		}
+
+		return entry;
 	}
 
 	/**
-	 * Get definition for a word with Wiktionary fallback
+	 * Get definition for a word from all available sources (Webster's + Wiktionary)
 	 */
 	async getDefinitionWithFallback(word: string): Promise<DefinitionEntry | null> {
-		// Try local dictionary first
+		const sources: DefinitionSource[] = [];
+
+		// Try local dictionary first (Webster's)
 		const localDef = this.getDefinition(word);
-		if (localDef) {
-			return localDef;
+		if (localDef && localDef.sources) {
+			sources.push(...localDef.sources);
 		}
 
-		// Fall back to Wiktionary
-		return await this.fetchFromWiktionary(word);
+		// Also try Wiktionary
+		try {
+			const wiktionaryDef = await this.fetchFromWiktionary(word);
+			if (wiktionaryDef && wiktionaryDef.sources) {
+				sources.push(...wiktionaryDef.sources);
+			}
+		} catch (error) {
+			console.error('Error fetching from Wiktionary:', error);
+		}
+
+		if (sources.length === 0) {
+			return null;
+		}
+
+		return {
+			word: word.toLowerCase(),
+			sources
+		};
 	}
 
 	/**

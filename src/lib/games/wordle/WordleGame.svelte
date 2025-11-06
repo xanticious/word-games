@@ -158,8 +158,9 @@
 	function handleCandidateWordClick(word: string) {
 		if (!game || gameState?.gameStatus !== 'playing') return;
 
-		// Clear current guess
-		while (gameState.currentGuess.length > 0) {
+		// Clear current guess - delete letters until empty
+		const currentLength = gameState.currentGuess.length;
+		for (let i = 0; i < currentLength; i++) {
 			game.deleteLetter();
 		}
 
