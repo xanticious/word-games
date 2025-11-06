@@ -251,7 +251,9 @@
 	{#if isLoading}
 		<div class="flex flex-1 items-center justify-center">
 			<div class="text-center">
-				<div class="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+				<div
+					class="border-primary mx-auto mt-8 mb-4 h-8 w-8 animate-spin rounded-full border-b-2"
+				></div>
 				<p class="text-muted-foreground">Loading game...</p>
 			</div>
 		</div>
