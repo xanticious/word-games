@@ -10,11 +10,14 @@
 	function isFound(word: string): boolean {
 		return foundWords.includes(word);
 	}
+
+	// Determine if we should use two columns
+	const useTwoColumns = $derived(words.length > 10);
 </script>
 
 <div class="word-list">
-	<h3 class="word-list-title">Words to Find</h3>
-	<ul class="words">
+	<h3 class="word-list-title text-center">Words to Find</h3>
+	<ul class="words" class:two-columns={useTwoColumns} style:--word-count={words.length}>
 		{#each words as word}
 			<li class="word-item" class:found={isFound(word)}>
 				{word}
@@ -48,6 +51,19 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+	}
+
+	.words.two-columns {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-auto-flow: column;
+		grid-template-rows: repeat(auto-fill, auto);
+		gap: 0.1rem 2rem;
+	}
+
+	.words.two-columns {
+		/* Calculate the number of rows needed */
+		grid-template-rows: repeat(calc((var(--word-count) + 1) / 2), auto);
 	}
 
 	.word-item {

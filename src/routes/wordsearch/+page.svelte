@@ -13,6 +13,7 @@
 		Highlight,
 		HIGHLIGHT_COLORS
 	} from '$lib/games/wordsearch/types.js';
+	import { WORD_LISTS } from '$lib/games/wordsearch/types.js';
 	import { getWordList } from '$lib/games/wordsearch/wordListService.js';
 	import { generateGrid, getGridDimensions } from '$lib/games/wordsearch/gridGenerator.js';
 	import {
@@ -53,6 +54,8 @@
 	// Game state
 	let grid = $state<GridCell[][]>([]);
 	let words = $state<string[]>([]);
+	let sourceName = $state<string>('');
+	let sourceUrl = $state<string | undefined>(undefined);
 	let highlights = $state<Highlight[]>([]);
 	let isLoading = $state(true);
 	let isComplete = $state(false);
@@ -76,11 +79,13 @@
 		const dimensions = getGridDimensions(gridSize);
 
 		// Fetch word list
-		const fetchedWords = await getWordList(wordList, dimensions);
-		words = fetchedWords;
+		const result = await getWordList(wordList, dimensions);
+		words = result.words;
+		sourceName = result.sourceName;
+		sourceUrl = result.sourceUrl;
 
 		// Generate grid
-		grid = generateGrid(fetchedWords, allowedDirections, dimensions);
+		grid = generateGrid(result.words, allowedDirections, dimensions);
 
 		isLoading = false;
 	}
@@ -283,21 +288,35 @@
 				</div>
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="grid-wrapper" onclick={(e) => e.stopPropagation()}>
-					<HighlightCanvas
-						gridSize={grid.length}
-						cellSize={CELL_SIZE}
-						{highlights}
-						currentSelection={currentSelection.length > 0 ? currentSelection : null}
-					/>
-					<WordGrid
-						{grid}
-						cellSize={CELL_SIZE}
-						onCellClick={handleCellClick}
-						onCellMouseDown={handleCellMouseDown}
-						onCellMouseEnter={handleCellMouseEnter}
-						onCellMouseUp={handleCellMouseUp}
-					/>
+				<div class="grid-container">
+					{#if sourceName}
+						<h2 class="grid-heading">
+							{WORD_LISTS.find((wl) => wl.value === wordList)?.label || 'Word Search'}:
+							{#if sourceUrl}
+								<a href={sourceUrl} target="_blank" rel="noopener noreferrer" class="source-link">
+									"{sourceName}"
+								</a>
+							{:else}
+								"{sourceName}"
+							{/if}
+						</h2>
+					{/if}
+					<div class="grid-wrapper" onclick={(e) => e.stopPropagation()}>
+						<HighlightCanvas
+							gridSize={grid.length}
+							cellSize={CELL_SIZE}
+							{highlights}
+							currentSelection={currentSelection.length > 0 ? currentSelection : null}
+						/>
+						<WordGrid
+							{grid}
+							cellSize={CELL_SIZE}
+							onCellClick={handleCellClick}
+							onCellMouseDown={handleCellMouseDown}
+							onCellMouseEnter={handleCellMouseEnter}
+							onCellMouseUp={handleCellMouseUp}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -319,6 +338,34 @@
 		align-items: flex-start;
 		flex-wrap: wrap;
 		justify-content: center;
+	}
+
+	.grid-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.grid-heading {
+		font-size: 1.25rem;
+		font-weight: 600;
+		text-align: center;
+		margin: 0;
+		color: hsl(var(--foreground));
+	}
+
+	.source-link {
+		color: hsl(var(--primary));
+		text-decoration: underline;
+		text-decoration-style: dotted;
+		text-underline-offset: 2px;
+		transition: color 0.2s;
+	}
+
+	.source-link:hover {
+		color: hsl(var(--primary) / 0.8);
+		text-decoration-style: solid;
 	}
 
 	.grid-wrapper {
