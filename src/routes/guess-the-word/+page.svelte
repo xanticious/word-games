@@ -2,7 +2,6 @@
 	import { GameLayout } from '$lib/components/index.js';
 	import { WordleGame } from '$lib/games/wordle/index.js';
 	import { getGameConfig } from '$lib/utils/gameConfigs.js';
-	import { settingsActions } from '$lib/stores/settings.js';
 	import { gameResults } from '$lib/stores/gameHistory.js';
 	import { guessTheWordSettings } from '$lib/stores/guessTheWordSettings.js';
 	import { goto } from '$app/navigation';

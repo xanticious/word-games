@@ -1,12 +1,10 @@
 // Base components
 export { default as GameLayout } from './GameLayout.svelte';
 export { default as GameCard } from './GameCard.svelte';
-export { default as ThemeSelector } from './ThemeSelector.svelte';
 export { default as DifficultySelector } from './DifficultySelector.svelte';
 
 // Layout components
 export { default as Header } from './Header.svelte';
-export { default as SettingsModal } from './SettingsModal.svelte';
 
 // Game components
 export { default as FullscreenButton } from './FullscreenButton.svelte';
