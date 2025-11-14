@@ -2,8 +2,214 @@
 	import { GameLayout } from '$lib/components/index.js';
 	import { getGameConfig } from '$lib/utils/gameConfigs.js';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import type {
+		GridSize,
+		Density,
+		WordListType,
+		Direction,
+		GridCell,
+		Highlight,
+		HIGHLIGHT_COLORS
+	} from '$lib/games/wordsearch/types.js';
+	import { getWordList } from '$lib/games/wordsearch/wordListService.js';
+	import { generateGrid, getGridDimensions } from '$lib/games/wordsearch/gridGenerator.js';
+	import {
+		getCellsBetween,
+		validateSelection,
+		getDirection
+	} from '$lib/games/wordsearch/selectionLogic.js';
+	import WordGrid from '$lib/games/wordsearch/WordGrid.svelte';
+	import WordList from '$lib/games/wordsearch/WordList.svelte';
+	import HighlightCanvas from '$lib/games/wordsearch/HighlightCanvas.svelte';
+
+	// Import highlight colors
+	const COLORS = [
+		'palegreen',
+		'paleturquoise',
+		'palegoldenrod',
+		'lightpink',
+		'lightsalmon',
+		'lightblue',
+		'plum',
+		'khaki'
+	];
+
+	// Cell size in pixels
+	const CELL_SIZE = 40;
 
 	const gameConfig = getGameConfig('wordsearch')!;
+
+	// Read settings from URL parameters
+	let gridSize = $derived(($page.url.searchParams.get('gridSize') as GridSize) || 'medium');
+	let density = $derived(($page.url.searchParams.get('density') as Density) || 'normal');
+	let wordList = $derived(($page.url.searchParams.get('wordList') as WordListType) || 'movies');
+	let directions = $derived($page.url.searchParams.get('directions') || 'right,down');
+
+	// Parse directions string into array
+	let allowedDirections = $derived(directions.split(',').filter(Boolean) as Direction[]);
+
+	// Game state
+	let grid = $state<GridCell[][]>([]);
+	let words = $state<string[]>([]);
+	let highlights = $state<Highlight[]>([]);
+	let isLoading = $state(true);
+	let isComplete = $state(false);
+
+	// Selection state
+	let isDragging = $state(false);
+	let startCell = $state<{ row: number; col: number } | null>(null);
+	let currentSelection = $state<{ row: number; col: number }[]>([]);
+	let hoverCell = $state<{ row: number; col: number } | null>(null);
+	let mouseDownCell = $state<{ row: number; col: number } | null>(null);
+
+	// Initialize the game
+	onMount(async () => {
+		await initializeGame();
+	});
+
+	async function initializeGame() {
+		isLoading = true;
+
+		// Get grid dimensions
+		const dimensions = getGridDimensions(gridSize);
+
+		// Fetch word list
+		const fetchedWords = await getWordList(wordList, dimensions);
+		words = fetchedWords;
+
+		// Generate grid
+		grid = generateGrid(fetchedWords, allowedDirections, dimensions);
+
+		isLoading = false;
+	}
+
+	function handleCellClick(row: number, col: number) {
+		// If we were dragging, don't process as click
+		if (isDragging) {
+			isDragging = false;
+			return;
+		}
+
+		// Two-click selection mode
+		if (startCell === null) {
+			// First click - set start cell
+			startCell = { row, col };
+			hoverCell = { row, col };
+			updateSelection([{ row, col }]);
+		} else {
+			// Second click - complete selection
+			const cells = getCellsBetween(startCell.row, startCell.col, row, col, grid.length);
+			completeSelection(cells);
+			startCell = null;
+			hoverCell = null;
+		}
+	}
+
+	function handleCellMouseDown(row: number, col: number) {
+		// Record where mouse down occurred
+		mouseDownCell = { row, col };
+	}
+
+	function handleCellMouseEnter(row: number, col: number) {
+		// If mouse is down and we've moved to a different cell, start dragging
+		if (mouseDownCell !== null && (mouseDownCell.row !== row || mouseDownCell.col !== col)) {
+			if (!isDragging) {
+				// Start drag mode
+				isDragging = true;
+				startCell = { row: mouseDownCell.row, col: mouseDownCell.col };
+			}
+		}
+
+		// Update hover cell for two-click mode (when not dragging and mouse is up)
+		if (startCell !== null && !isDragging && mouseDownCell === null) {
+			hoverCell = { row, col };
+			const cells = getCellsBetween(startCell.row, startCell.col, row, col, grid.length);
+			updateSelection(cells);
+			return;
+		}
+
+		// Update selection as we drag
+		if (isDragging && startCell !== null) {
+			const cells = getCellsBetween(startCell.row, startCell.col, row, col, grid.length);
+			updateSelection(cells);
+		}
+	}
+
+	function handleCellMouseUp(row: number, col: number) {
+		// Clear mouse down tracking
+		mouseDownCell = null;
+
+		if (!isDragging || startCell === null) return;
+
+		// Complete drag selection
+		const cells = getCellsBetween(startCell.row, startCell.col, row, col, grid.length);
+		completeSelection(cells);
+
+		isDragging = false;
+		startCell = null;
+		hoverCell = null;
+	}
+
+	function updateSelection(cells: { row: number; col: number }[]) {
+		// Clear previous selection
+		for (const row of grid) {
+			for (const cell of row) {
+				cell.isSelected = false;
+			}
+		}
+
+		// Set new selection
+		for (const cell of cells) {
+			grid[cell.row][cell.col].isSelected = true;
+		}
+
+		currentSelection = cells;
+	}
+
+	function completeSelection(cells: { row: number; col: number }[]) {
+		if (cells.length === 0) {
+			updateSelection([]);
+			return;
+		}
+
+		// Validate the selection
+		const foundWord = validateSelection(cells, grid, words);
+
+		if (foundWord && !highlights.some((h) => h.word === foundWord)) {
+			// Get the next color
+			const color = COLORS[highlights.length % COLORS.length];
+
+			// Determine the direction
+			const direction = getDirection(
+				cells[0].row,
+				cells[0].col,
+				cells[cells.length - 1].row,
+				cells[cells.length - 1].col
+			);
+
+			// Add highlight
+			highlights.push({
+				word: foundWord,
+				startRow: cells[0].row,
+				startCol: cells[0].col,
+				endRow: cells[cells.length - 1].row,
+				endCol: cells[cells.length - 1].col,
+				direction,
+				color
+			});
+
+			// Check if game is complete
+			if (highlights.length === words.length) {
+				isComplete = true;
+			}
+		}
+
+		// Clear selection
+		updateSelection([]);
+		currentSelection = [];
+	}
 
 	function handleGameExit() {
 		goto('/');
@@ -12,6 +218,29 @@
 	function handleGameComplete(result: any) {
 		console.log('Game completed:', result);
 	}
+
+	function handlePlayAgain() {
+		// Reset state and reinitialize
+		highlights = [];
+		isComplete = false;
+		initializeGame();
+	}
+
+	function handleClickOutside() {
+		// If in two-click mode and we have a start cell, complete the selection
+		if (startCell !== null && !isDragging && hoverCell !== null) {
+			const cells = getCellsBetween(
+				startCell.row,
+				startCell.col,
+				hoverCell.row,
+				hoverCell.col,
+				grid.length
+			);
+			completeSelection(cells);
+			startCell = null;
+			hoverCell = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -19,29 +248,95 @@
 </svelte:head>
 
 <GameLayout config={gameConfig} onGameExit={handleGameExit} onGameComplete={handleGameComplete}>
-	<div class="flex min-h-[60vh] flex-col items-center justify-center text-center">
-		<div class="mb-8 text-6xl">🔍</div>
-		<h1 class="text-foreground mb-4 text-3xl font-bold">Word Search</h1>
-		<p class="text-muted-foreground mb-8 max-w-md text-lg">
-			Find hidden words in letter grids. Coming soon!
-		</p>
-		<div class="space-y-4">
-			<div class="bg-muted/50 max-w-md rounded-lg p-6">
-				<h3 class="mb-2 font-semibold">Game Features:</h3>
-				<ul class="text-muted-foreground space-y-1 text-sm">
-					<li>• Multiple grid sizes</li>
-					<li>• Words in all directions</li>
-					<li>• Click and drag selection</li>
-					<li>• Theme categories</li>
-					<li>• Optional timer</li>
-				</ul>
-			</div>
-			<button
-				onclick={handleGameExit}
-				class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium shadow transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-			>
-				Back to Games
-			</button>
+	{#if isLoading}
+		<div class="flex min-h-[60vh] flex-col items-center justify-center">
+			<div class="mb-4 text-6xl">⏳</div>
+			<p class="text-muted-foreground">Loading game...</p>
 		</div>
-	</div>
+	{:else if isComplete}
+		<div class="flex min-h-[60vh] flex-col items-center justify-center text-center">
+			<div class="mb-8 text-6xl">🎉</div>
+			<h1 class="text-foreground mb-4 text-3xl font-bold">Congratulations!</h1>
+			<p class="text-muted-foreground mb-8 text-lg">You found all {words.length} words!</p>
+			<div class="flex gap-4">
+				<button
+					onclick={handlePlayAgain}
+					class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium shadow transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+				>
+					Play Again
+				</button>
+				<button
+					onclick={handleGameExit}
+					class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+				>
+					Back to Games
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="game-container" onclick={handleClickOutside}>
+			<div class="game-content">
+				<div class="word-list-container">
+					<WordList {words} foundWords={highlights.map((h) => h.word)} />
+				</div>
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div class="grid-wrapper" onclick={(e) => e.stopPropagation()}>
+					<HighlightCanvas
+						gridSize={grid.length}
+						cellSize={CELL_SIZE}
+						{highlights}
+						currentSelection={currentSelection.length > 0 ? currentSelection : null}
+					/>
+					<WordGrid
+						{grid}
+						cellSize={CELL_SIZE}
+						onCellClick={handleCellClick}
+						onCellMouseDown={handleCellMouseDown}
+						onCellMouseEnter={handleCellMouseEnter}
+						onCellMouseUp={handleCellMouseUp}
+					/>
+				</div>
+			</div>
+		</div>
+	{/if}
 </GameLayout>
+
+<style>
+	.game-container {
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+		padding: 2rem;
+		min-height: 60vh;
+	}
+
+	.game-content {
+		display: flex;
+		gap: 2rem;
+		align-items: flex-start;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.grid-wrapper {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.word-list-container {
+		flex-shrink: 0;
+	}
+
+	@media (max-width: 768px) {
+		.game-container {
+			padding: 1rem;
+		}
+
+		.game-content {
+			gap: 1rem;
+		}
+	}
+</style>

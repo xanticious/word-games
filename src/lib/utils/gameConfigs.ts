@@ -20,7 +20,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
 		name: 'Word Search',
 		description: 'Find hidden words in letter grids',
 		icon: '🔍',
-		route: '/wordsearch',
+		route: '/wordsearch-config',
 		category: 'puzzle',
 		difficulty: ['easy', 'medium', 'hard'],
 		features: ['Multiple Directions', 'Theme Categories', 'Timer Optional'],

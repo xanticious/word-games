@@ -1,0 +1,77 @@
+<script lang="ts">
+	interface Props {
+		words: string[];
+		foundWords: string[];
+	}
+
+	let { words, foundWords }: Props = $props();
+
+	// Check if a word has been found
+	function isFound(word: string): boolean {
+		return foundWords.includes(word);
+	}
+</script>
+
+<div class="word-list">
+	<h3 class="word-list-title">Words to Find</h3>
+	<ul class="words">
+		{#each words as word}
+			<li class="word-item" class:found={isFound(word)}>
+				{word}
+			</li>
+		{/each}
+	</ul>
+	<div class="progress">
+		{foundWords.length} / {words.length} found
+	</div>
+</div>
+
+<style>
+	.word-list {
+		background: hsl(var(--muted) / 0.3);
+		border-radius: 0.5rem;
+		padding: 1.5rem;
+		min-width: 12rem;
+	}
+
+	.word-list-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+		color: hsl(var(--foreground));
+	}
+
+	.words {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.word-item {
+		padding: 0.5rem;
+		background: hsl(var(--background));
+		border-radius: 0.25rem;
+		font-weight: 500;
+		color: hsl(var(--foreground));
+		transition: all 0.2s ease;
+	}
+
+	.word-item.found {
+		text-decoration: line-through;
+		color: hsl(var(--muted-foreground));
+		background: hsl(var(--muted) / 0.5);
+	}
+
+	.progress {
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid hsl(var(--border));
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: hsl(var(--muted-foreground));
+		text-align: center;
+	}
+</style>
