@@ -363,18 +363,12 @@ export class GameDictionary {
 	}
 
 	/**
-	 * Get definition for a word from all available sources (Webster's + Wiktionary)
+	 * Get definition for a word from all available sources (Wiktionary + Webster's)
 	 */
 	async getDefinitionWithFallback(word: string): Promise<DefinitionEntry | null> {
 		const sources: DefinitionSource[] = [];
 
-		// Try local dictionary first (Webster's)
-		const localDef = this.getDefinition(word);
-		if (localDef && localDef.sources) {
-			sources.push(...localDef.sources);
-		}
-
-		// Also try Wiktionary
+		// Try Wiktionary first
 		try {
 			const wiktionaryDef = await this.fetchFromWiktionary(word);
 			if (wiktionaryDef && wiktionaryDef.sources) {
@@ -382,6 +376,12 @@ export class GameDictionary {
 			}
 		} catch (error) {
 			console.error('Error fetching from Wiktionary:', error);
+		}
+
+		// Also try local dictionary (Webster's)
+		const localDef = this.getDefinition(word);
+		if (localDef && localDef.sources) {
+			sources.push(...localDef.sources);
 		}
 
 		if (sources.length === 0) {
