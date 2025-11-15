@@ -240,8 +240,9 @@ export async function getWordList(
 			const article = await fetchWikipediaArticle();
 
 			if (article && article.words.length >= MIN_WORDS_NEEDED) {
-				// Success! Return the words (sorted alphabetically)
-				const sortedWords = article.words.slice(0, 20).sort();
+				// Success! Return the words as a word bank (sorted alphabetically)
+				// Return more words than needed - the grid generator will select which ones fit
+				const sortedWords = article.words.slice(0, 150).sort();
 				// Create Wikipedia URL from title (encode and replace spaces with underscores)
 				const wikipediaUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, '_'))}`;
 				return {

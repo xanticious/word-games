@@ -78,14 +78,15 @@
 		// Get grid dimensions
 		const dimensions = getGridDimensions(gridSize);
 
-		// Fetch word list
+		// Fetch word bank (now returns larger list as word bank)
 		const result = await getWordList(wordList, dimensions);
-		words = result.words;
 		sourceName = result.sourceName;
 		sourceUrl = result.sourceUrl;
 
-		// Generate grid
-		grid = generateGrid(result.words, allowedDirections, dimensions);
+		// Generate grid (takes word bank, returns grid + actual word list + metrics)
+		const generated = generateGrid(result.words, allowedDirections, dimensions, density);
+		grid = generated.grid;
+		words = generated.wordList; // Use the actual words that were placed
 
 		isLoading = false;
 	}
