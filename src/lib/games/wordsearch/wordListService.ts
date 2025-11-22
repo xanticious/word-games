@@ -1,8 +1,10 @@
 /**
  * Service for retrieving word lists for the Word Search game
+ * Handles fetching word lists from various sources (Wikipedia, etc.)
  */
 
 import type { WordListType } from './types.js';
+import { extractWords } from './textProcessor.js';
 
 export interface WordListResult {
 	words: string[];
@@ -10,154 +12,6 @@ export interface WordListResult {
 	sourceUrl?: string;
 }
 
-// Common filler words to filter out
-const COMMON_WORDS = new Set([
-	'the',
-	'be',
-	'to',
-	'of',
-	'and',
-	'a',
-	'in',
-	'that',
-	'have',
-	'i',
-	'it',
-	'for',
-	'not',
-	'on',
-	'with',
-	'he',
-	'as',
-	'you',
-	'do',
-	'at',
-	'this',
-	'but',
-	'his',
-	'by',
-	'from',
-	'they',
-	'we',
-	'say',
-	'her',
-	'she',
-	'or',
-	'an',
-	'will',
-	'my',
-	'one',
-	'all',
-	'would',
-	'there',
-	'their',
-	'what',
-	'so',
-	'up',
-	'out',
-	'if',
-	'about',
-	'who',
-	'get',
-	'which',
-	'go',
-	'me',
-	'when',
-	'make',
-	'can',
-	'like',
-	'time',
-	'no',
-	'just',
-	'him',
-	'know',
-	'take',
-	'people',
-	'into',
-	'year',
-	'your',
-	'good',
-	'some',
-	'could',
-	'them',
-	'see',
-	'other',
-	'than',
-	'then',
-	'now',
-	'look',
-	'only',
-	'come',
-	'its',
-	'over',
-	'think',
-	'also',
-	'back',
-	'after',
-	'use',
-	'two',
-	'how',
-	'our',
-	'work',
-	'first',
-	'well',
-	'way',
-	'even',
-	'new',
-	'want',
-	'because',
-	'any',
-	'these',
-	'give',
-	'day',
-	'most',
-	'us',
-	'is',
-	'was',
-	'are',
-	'been',
-	'has',
-	'had',
-	'were',
-	'said',
-	'did',
-	'having',
-	'may',
-	'should',
-	'each',
-	'such',
-	'through',
-	'between',
-	'during',
-	'before',
-	'after',
-	'above',
-	'below',
-	'since',
-	'until',
-	'while',
-	'where',
-	'why',
-	'both',
-	'few',
-	'more',
-	'most',
-	'other',
-	'some',
-	'such',
-	'own',
-	'same',
-	'than',
-	'too',
-	'very',
-	'can',
-	'will',
-	'just',
-	'should',
-	'now'
-]);
-
-const MIN_WORD_LENGTH = 4;
 const MIN_WORDS_NEEDED = 8;
 
 /**
@@ -174,7 +28,6 @@ async function fetchWikipediaArticle(): Promise<{ title: string; words: string[]
 				grnnamespace: '0', // Main namespace only (articles)
 				prop: 'extracts',
 				explaintext: 'true',
-				exintro: 'false', // Get full article, not just intro
 				origin: '*' // CORS
 			});
 
@@ -201,26 +54,6 @@ async function fetchWikipediaArticle(): Promise<{ title: string; words: string[]
 		console.error('Error fetching Wikipedia article:', error);
 		return null;
 	}
-}
-
-/**
- * Extracts and filters words from text content
- */
-function extractWords(text: string): string[] {
-	// Extract words (letters only, case insensitive)
-	const wordMatches = text.match(/[a-zA-Z]+/g) || [];
-
-	// Filter and deduplicate
-	const wordSet = new Set<string>();
-	for (const word of wordMatches) {
-		const normalized = word.toLowerCase();
-		// Filter out short words and common filler words
-		if (normalized.length >= MIN_WORD_LENGTH && !COMMON_WORDS.has(normalized)) {
-			wordSet.add(normalized.toUpperCase());
-		}
-	}
-
-	return Array.from(wordSet);
 }
 
 /**

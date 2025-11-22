@@ -7,6 +7,7 @@ export { default as WordList } from './WordList.svelte';
 export { default as HighlightCanvas } from './HighlightCanvas.svelte';
 export * from './types.js';
 export * from './wordListService.js';
+export * from './textProcessor.js';
 export * from './gridGenerator.js';
 export * from './selectionLogic.js';
 
