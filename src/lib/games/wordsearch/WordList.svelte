@@ -77,8 +77,9 @@
 
 	.word-item.found {
 		text-decoration: line-through;
-		color: hsl(var(--muted-foreground));
+		color: hsl(var(--muted-foreground) / 0.5);
 		background: hsl(var(--muted) / 0.5);
+		opacity: 0.6;
 	}
 
 	.progress {

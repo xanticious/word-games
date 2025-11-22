@@ -259,30 +259,35 @@
 			<div class="mb-4 text-6xl">⏳</div>
 			<p class="text-muted-foreground">Loading game...</p>
 		</div>
-	{:else if isComplete}
-		<div class="flex min-h-[60vh] flex-col items-center justify-center text-center">
-			<div class="mb-8 text-6xl">🎉</div>
-			<h1 class="text-foreground mb-4 text-3xl font-bold">Congratulations!</h1>
-			<p class="text-muted-foreground mb-8 text-lg">You found all {words.length} words!</p>
-			<div class="flex gap-4">
-				<button
-					onclick={handlePlayAgain}
-					class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium shadow transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-				>
-					Play Again
-				</button>
-				<button
-					onclick={handleGameExit}
-					class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-				>
-					Back to Games
-				</button>
-			</div>
-		</div>
 	{:else}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="game-container" onclick={handleClickOutside}>
+			{#if isComplete}
+				<div class="congratulations-banner">
+					<div class="banner-content">
+						<div class="banner-icon">🎉</div>
+						<div class="banner-text">
+							<h2 class="banner-title">Congratulations!</h2>
+							<p class="banner-message">You found all {words.length} words!</p>
+						</div>
+						<div class="banner-actions">
+							<button
+								onclick={handlePlayAgain}
+								class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium shadow transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+							>
+								Play Again
+							</button>
+							<button
+								onclick={handleGameExit}
+								class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+							>
+								Back to Games
+							</button>
+						</div>
+					</div>
+				</div>
+			{/if}
 			<div class="game-content">
 				<div class="word-list-container">
 					<WordList {words} foundWords={highlights.map((h) => h.word)} />
@@ -327,10 +332,76 @@
 <style>
 	.game-container {
 		display: flex;
-		justify-content: center;
-		align-items: flex-start;
+		flex-direction: column;
+		align-items: center;
 		padding: 2rem;
 		min-height: 60vh;
+		gap: 1.5rem;
+	}
+
+	.congratulations-banner {
+		width: 100%;
+		max-width: 1200px;
+		background: linear-gradient(
+			135deg,
+			hsl(var(--primary) / 0.1) 0%,
+			hsl(var(--primary) / 0.05) 100%
+		);
+		border: 2px solid hsl(var(--primary) / 0.3);
+		border-radius: 0.75rem;
+		padding: 1.5rem;
+		box-shadow:
+			0 4px 6px -1px rgb(0 0 0 / 0.1),
+			0 2px 4px -2px rgb(0 0 0 / 0.1);
+		animation: slideDown 0.5s ease-out;
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.banner-content {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.banner-icon {
+		font-size: 2.5rem;
+		flex-shrink: 0;
+	}
+
+	.banner-text {
+		flex: 1;
+		min-width: 200px;
+	}
+
+	.banner-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: hsl(var(--foreground));
+		margin: 0 0 0.25rem 0;
+	}
+
+	.banner-message {
+		font-size: 1rem;
+		color: hsl(var(--muted-foreground));
+		margin: 0;
+	}
+
+	.banner-actions {
+		display: flex;
+		gap: 0.75rem;
+		flex-wrap: wrap;
 	}
 
 	.game-content {
@@ -385,6 +456,34 @@
 
 		.game-content {
 			gap: 1rem;
+		}
+
+		.congratulations-banner {
+			padding: 1rem;
+		}
+
+		.banner-content {
+			flex-direction: column;
+			text-align: center;
+			gap: 1rem;
+		}
+
+		.banner-icon {
+			font-size: 2rem;
+		}
+
+		.banner-title {
+			font-size: 1.25rem;
+		}
+
+		.banner-actions {
+			justify-content: center;
+			width: 100%;
+		}
+
+		.banner-actions button {
+			flex: 1;
+			min-width: 120px;
 		}
 	}
 </style>

@@ -23,7 +23,7 @@ const CAPACITY_FACTOR = {
 
 const MIN_UNIQUENESS = 0.3; // 30% of letters must be unshared (hard constraint)
 const PREFERRED_UNIQUENESS = 0.5; // 50% target (soft constraint for scoring)
-const MONTE_CARLO_ATTEMPTS = 5;
+const MONTE_CARLO_ATTEMPTS = 20;
 
 const QUALITY_WEIGHTS = {
 	wordsPlaced: 10,
@@ -75,6 +75,7 @@ interface PerformanceMetrics {
 
 interface InternalGridCell extends Omit<GridCell, 'wordIds'> {
 	wordIds?: Set<string>;
+	isFirstLetter?: boolean;
 }
 
 // ============================================================================
@@ -233,10 +234,10 @@ function validatePlacement(
 		return { valid: false, intersectionCount: 0 };
 	}
 
-	// Track for consecutive sharing and uniqueness checks
+	// Track for uniqueness and intersection checks
 	let emptyCount = 0;
 	let intersectionCount = 0;
-	const intersectedWords = new Map<string, number[]>(); // wordId -> positions in current word
+	const intersectedWords = new Set<string>(); // Track unique words we're intersecting
 
 	for (let i = 0; i < word.length; i++) {
 		const cell = grid[cells[i].row][cells[i].col];
@@ -251,39 +252,32 @@ function validatePlacement(
 				return { valid: false, intersectionCount: 0 };
 			}
 
+			// 4. Don't intersect another word's first letter
+			if (cell.isFirstLetter) {
+				return { valid: false, intersectionCount: 0 };
+			}
+
 			intersectionCount++;
 
-			// Track which words we're intersecting with
+			// 5. Track which words we're intersecting with
+			// If we intersect the same word twice, it means we're on the same line
 			if (cell.wordIds) {
 				for (const wordId of cell.wordIds) {
-					if (!intersectedWords.has(wordId)) {
-						intersectedWords.set(wordId, []);
+					if (intersectedWords.has(wordId)) {
+						// Already intersected this word - invalid placement
+						return { valid: false, intersectionCount };
 					}
-					intersectedWords.get(wordId)!.push(i);
+					intersectedWords.add(wordId);
 				}
 			}
 		}
 	}
 
-	// 4. Minimum uniqueness constraint (30%)
+	// 6. Minimum uniqueness constraint (30%)
 	const uniquenessRatio = emptyCount / word.length;
 	if (uniquenessRatio < MIN_UNIQUENESS) {
 		return { valid: false, intersectionCount };
 	}
-
-	// 5. No consecutive letter sharing check
-	for (const [wordId, positions] of intersectedWords) {
-		// Check if any two positions are consecutive
-		for (let i = 1; i < positions.length; i++) {
-			if (positions[i] === positions[i - 1] + 1) {
-				// Found consecutive sharing
-				return { valid: false, intersectionCount };
-			}
-		}
-	}
-
-	// 6. Multiple word intersection allowed - no additional check needed
-	// (Already handled by checking each word individually in step 5)
 
 	// 7. Duplicate prevention check
 	if (placedWords.has(word)) {
@@ -383,6 +377,11 @@ function placeWord(
 		const cell = grid[cells[i].row][cells[i].col];
 		cell.letter = word[i];
 
+		// Mark first letter
+		if (i === 0) {
+			cell.isFirstLetter = true;
+		}
+
 		// Initialize wordIds set if needed
 		if (!cell.wordIds) {
 			cell.wordIds = new Set();
@@ -412,7 +411,8 @@ function checkForAccidentalWord(
 	row: number,
 	col: number,
 	wordBank: Set<string>,
-	allowedDirections: Direction[]
+	allowedDirections: Direction[],
+	debugLetter?: string
 ): boolean {
 	// Check each direction that passes through this cell
 	for (const direction of allowedDirections) {
@@ -442,14 +442,27 @@ function checkForAccidentalWord(
 
 				// Build the word from the grid
 				let word = '';
+				let hasEmptyCell = false;
 				for (const cell of cells) {
 					const letter = grid[cell.row][cell.col].letter;
-					if (letter === '') break; // Hit an empty cell
+					if (letter === '') {
+						hasEmptyCell = true;
+						break; // Hit an empty cell - can't form a complete word
+					}
 					word += letter;
 				}
 
+				// Skip if the range includes an empty cell - it can't spell a word from the bank
+				if (hasEmptyCell) continue;
+
 				// Check if this word is in the bank
 				if (word.length >= 4 && wordBank.has(word)) {
+					if (debugLetter) {
+						console.log(
+							`[ACCIDENTAL WORD] Letter '${debugLetter}' at (${row},${col}) would create '${word}' ` +
+								`starting at (${startRow},${startCol}) going ${direction}`
+						);
+					}
 					return true; // Found accidental word
 				}
 			}
@@ -479,18 +492,29 @@ function fillEmptyCells(
 			if (grid[row][col].letter !== '') continue; // Skip filled cells
 
 			let letterPlaced = false;
-			let attempts = 0;
 
-			// Try to find a valid letter
-			while (!letterPlaced && attempts < MAX_RANDOM_FILL_ATTEMPTS) {
-				attempts++;
-				const letter = getRandomLetter(letterPool);
+			// Make a copy of the letter pool for sampling without replacement
+			const poolCopy = letterPool.split('');
+			const seenLetters = new Set<string>();
+
+			// Try to find a valid letter by sampling without replacement
+			while (!letterPlaced && poolCopy.length > 0) {
+				// Pick a random letter from the remaining pool
+				const randomIndex = Math.floor(Math.random() * poolCopy.length);
+				const letter = poolCopy[randomIndex];
+
+				// Remove it from the pool
+				poolCopy.splice(randomIndex, 1);
+
+				// Skip if we've already tried this letter
+				if (seenLetters.has(letter)) continue;
+				seenLetters.add(letter);
 
 				// Temporarily place the letter
 				grid[row][col].letter = letter;
 
 				// Check if it creates an accidental word
-				if (!checkForAccidentalWord(grid, row, col, wordBank, allowedDirections)) {
+				if (!checkForAccidentalWord(grid, row, col, wordBank, allowedDirections, letter)) {
 					letterPlaced = true;
 				} else {
 					// Remove the letter and try again
@@ -503,6 +527,10 @@ function fillEmptyCells(
 				const greekLetter =
 					GREEK_LETTER_FALLBACKS[Math.floor(Math.random() * GREEK_LETTER_FALLBACKS.length)];
 				grid[row][col].letter = greekLetter;
+				console.log(
+					`[GREEK LETTER FALLBACK] All 26 letters failed at (${row},${col}). ` +
+						`Tried ${seenLetters.size} unique letters. Using '${greekLetter}'.`
+				);
 			}
 		}
 	}
@@ -598,7 +626,8 @@ function createEmptyGrid(gridSize: number): InternalGridCell[][] {
 				letter: '',
 				row,
 				col,
-				isSelected: false
+				isSelected: false,
+				isFirstLetter: false
 			});
 		}
 		grid.push(gridRow);
