@@ -59,6 +59,9 @@
 	let highlights = $state<Highlight[]>([]);
 	let isLoading = $state(true);
 	let isComplete = $state(false);
+	let hasGivenUp = $state(false);
+	let highlightLetter = $state('');
+	let wordsFoundBeforeGivingUp = $state(0);
 
 	// Selection state
 	let isDragging = $state(false);
@@ -229,6 +232,9 @@
 		// Reset state and reinitialize
 		highlights = [];
 		isComplete = false;
+		hasGivenUp = false;
+		highlightLetter = '';
+		wordsFoundBeforeGivingUp = 0;
 		initializeGame();
 	}
 
@@ -245,6 +251,114 @@
 			completeSelection(cells);
 			startCell = null;
 			hoverCell = null;
+		}
+	}
+
+	// Direction deltas for searching
+	const DIRECTION_DELTAS: Record<Direction, { row: number; col: number }> = {
+		right: { row: 0, col: 1 },
+		down: { row: 1, col: 0 },
+		left: { row: 0, col: -1 },
+		up: { row: -1, col: 0 },
+		ne: { row: -1, col: 1 },
+		se: { row: 1, col: 1 },
+		sw: { row: 1, col: -1 },
+		nw: { row: -1, col: -1 }
+	};
+
+	function findWordInGrid(word: string): Highlight | null {
+		const wordUpper = word.toUpperCase();
+		const gridSize = grid.length;
+
+		// Search each starting position
+		for (let row = 0; row < gridSize; row++) {
+			for (let col = 0; col < gridSize; col++) {
+				// Try each allowed direction
+				for (const direction of allowedDirections) {
+					const delta = DIRECTION_DELTAS[direction];
+					let found = true;
+					let endRow = row;
+					let endCol = col;
+
+					// Check if word matches in this direction
+					for (let i = 0; i < wordUpper.length; i++) {
+						const currentRow = row + delta.row * i;
+						const currentCol = col + delta.col * i;
+
+						// Check bounds
+						if (
+							currentRow < 0 ||
+							currentRow >= gridSize ||
+							currentCol < 0 ||
+							currentCol >= gridSize
+						) {
+							found = false;
+							break;
+						}
+
+						// Check letter match
+						if (grid[currentRow][currentCol].letter !== wordUpper[i]) {
+							found = false;
+							break;
+						}
+
+						if (i === wordUpper.length - 1) {
+							endRow = currentRow;
+							endCol = currentCol;
+						}
+					}
+
+					if (found) {
+						return {
+							word,
+							startRow: row,
+							startCol: col,
+							endRow,
+							endCol,
+							direction,
+							color: '' // Will be assigned later
+						};
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
+	function handleGiveUp() {
+		// Track how many words were found before giving up
+		wordsFoundBeforeGivingUp = highlights.length;
+
+		// Find all words that haven't been found yet
+		const foundWords = new Set(highlights.map((h) => h.word));
+		const remainingWords = words.filter((w) => !foundWords.has(w));
+
+		// Find and highlight all remaining words
+		for (const word of remainingWords) {
+			const placement = findWordInGrid(word);
+			if (placement) {
+				// Assign a color
+				const color = COLORS[highlights.length % COLORS.length];
+				highlights.push({ ...placement, color });
+			}
+		}
+
+		// Mark as given up and complete
+		hasGivenUp = true;
+		isComplete = true;
+	}
+
+	function handleLetterHighlight(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const letter = input.value.toUpperCase().slice(0, 1); // Only take first character
+		highlightLetter = letter;
+
+		// Update grid cells
+		for (const row of grid) {
+			for (const cell of row) {
+				cell.isLetterHighlighted = letter !== '' && cell.letter === letter;
+			}
 		}
 	}
 </script>
@@ -266,10 +380,18 @@
 			{#if isComplete}
 				<div class="congratulations-banner">
 					<div class="banner-content">
-						<div class="banner-icon">🎉</div>
+						<div class="banner-icon">{hasGivenUp ? '😔' : '🎉'}</div>
 						<div class="banner-text">
-							<h2 class="banner-title">Congratulations!</h2>
-							<p class="banner-message">You found all {words.length} words!</p>
+							<h2 class="banner-title">
+								{hasGivenUp ? 'Better luck next time!' : 'Congratulations!'}
+							</h2>
+							<p class="banner-message">
+								{#if hasGivenUp}
+									You found {wordsFoundBeforeGivingUp} of {words.length} words.
+								{:else}
+									You found all {words.length} words!
+								{/if}
+							</p>
 						</div>
 						<div class="banner-actions">
 							<button
@@ -323,6 +445,31 @@
 							onCellMouseUp={handleCellMouseUp}
 						/>
 					</div>
+					{#if !isComplete}
+						<div class="help-section">
+							<h3 class="help-title">Help Me</h3>
+							<div class="game-controls">
+								<div class="control-group">
+									<label for="letter-highlight" class="control-label"> Highlight letter: </label>
+									<input
+										id="letter-highlight"
+										type="text"
+										class="letter-input"
+										value={highlightLetter}
+										oninput={handleLetterHighlight}
+										placeholder="A"
+										maxlength="1"
+									/>
+								</div>
+								<button
+									onclick={handleGiveUp}
+									class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+								>
+									I Give Up
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -447,6 +594,69 @@
 
 	.word-list-container {
 		flex-shrink: 0;
+	}
+
+	.help-section {
+		margin-top: 1.5rem;
+		width: 100%;
+		max-width: 600px;
+	}
+
+	.help-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: hsl(var(--foreground));
+		margin: 0 0 0.75rem 0;
+		text-align: center;
+	}
+
+	.game-controls {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.75rem 1rem;
+		background: hsl(var(--muted) / 0.3);
+		border: 1px solid hsl(var(--border));
+		border-radius: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.control-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.control-label {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: hsl(var(--foreground));
+	}
+
+	.letter-input {
+		width: 3rem;
+		height: 2.5rem;
+		text-align: center;
+		font-size: 1.125rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		border: 1px solid hsl(var(--border));
+		border-radius: 0.375rem;
+		background: hsl(var(--background));
+		color: hsl(var(--foreground));
+		transition: all 0.2s;
+	}
+
+	.letter-input:focus {
+		outline: none;
+		border-color: hsl(var(--primary));
+		box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+	}
+
+	.letter-input::placeholder {
+		color: hsl(var(--muted-foreground));
+		opacity: 0.5;
 	}
 
 	@media (max-width: 768px) {

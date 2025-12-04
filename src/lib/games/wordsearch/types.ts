@@ -2,7 +2,7 @@
  * Type definitions for Word Search game
  */
 
-export type GridSize = 'small' | 'medium' | 'large' | 'extra-large';
+export type GridSize = 'small' | 'medium' | 'large';
 export type Density = 'sparse' | 'normal' | 'dense';
 export type WordListType =
 	| 'characters'
@@ -65,12 +65,6 @@ export const GRID_SIZES: GridSizeInfo[] = [
 		label: 'Large',
 		description: '20x20 grid',
 		dimensions: '20x20'
-	},
-	{
-		value: 'extra-large',
-		label: 'Extra Large',
-		description: '25x25 grid',
-		dimensions: '25x25'
 	}
 ];
 
@@ -179,6 +173,7 @@ export interface GridCell {
 	row: number;
 	col: number;
 	isSelected: boolean;
+	isLetterHighlighted?: boolean;
 }
 
 export interface Highlight {

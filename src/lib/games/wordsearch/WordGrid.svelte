@@ -21,6 +21,7 @@
 				<button
 					class="grid-cell"
 					class:selected={cell.isSelected}
+					class:letter-highlighted={cell.isLetterHighlighted}
 					style:width="{cellSize}px"
 					style:height="{cellSize}px"
 					onclick={() => onCellClick(cell.row, cell.col)}
@@ -73,5 +74,15 @@
 	.grid-cell.selected {
 		background: hsl(var(--primary) / 0.2);
 		border-color: hsl(var(--primary));
+	}
+
+	.grid-cell.letter-highlighted {
+		background: hsl(60 100% 50% / 0.7);
+		font-weight: 700;
+		color: hsl(var(--foreground));
+	}
+
+	.grid-cell.letter-highlighted:hover {
+		background: hsl(60 100% 50% / 0.85);
 	}
 </style>

@@ -29,7 +29,8 @@ const QUALITY_WEIGHTS = {
 	wordsPlaced: 10,
 	directionalBalance: 2,
 	spatialDistribution: 1,
-	uniquenessScore: 2
+	uniquenessScore: 2,
+	cycleBonus: 5
 };
 
 const GREEK_LETTER_FALLBACKS = ['Ω', 'Φ', 'Δ', 'Θ', 'Λ', 'Σ', 'Ψ', 'Ξ'];
@@ -65,17 +66,39 @@ interface GridConfig {
 
 interface PerformanceMetrics {
 	preprocessingMs: number;
+	cycleDetectionMs: number;
 	placementMs: number;
 	randomFillMs: number;
 	scoringMs: number;
 	totalMs: number;
 	wordsPlaced: number;
 	wordsAttempted: number;
+	cyclesDetected: number;
+	cyclesPlaced: number;
 }
 
 interface InternalGridCell extends Omit<GridCell, 'wordIds'> {
 	wordIds?: Set<string>;
 	isFirstLetter?: boolean;
+}
+
+interface CycleWord {
+	word: string;
+	row: number;
+	col: number;
+	direction: Direction;
+	crossingIndex: number; // index in word where it crosses with next word
+}
+
+interface WordCycle {
+	words: CycleWord[]; // ordered list of words in the cycle
+	usedWords: Set<string>; // for quick lookup
+}
+
+interface CyclePlacement {
+	cycle: WordCycle;
+	anchorRow: number; // where to place the cycle
+	anchorCol: number;
 }
 
 // ============================================================================
@@ -104,8 +127,7 @@ export function getGridDimensions(gridSize: string): number {
 	const sizeMap: Record<string, number> = {
 		small: 10,
 		medium: 15,
-		large: 20,
-		'extra-large': 25
+		large: 20
 	};
 	return sizeMap[gridSize] || 15;
 }
@@ -127,6 +149,33 @@ function shuffleArray<T>(array: T[]): T[] {
  */
 function getRandomLetter(pool: string): string {
 	return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * Calculates the slope of a direction for cycle detection
+ * Returns null for directions with undefined slope (vertical)
+ */
+function getDirectionSlope(direction: Direction): number | null {
+	const delta = DIRECTION_DELTAS[direction];
+	if (delta.dc === 0) return null; // Vertical - undefined slope
+	return delta.dr / delta.dc;
+}
+
+/**
+ * Checks if allowed directions can support cycles
+ * Returns false if all directions have the same slope (including vertical)
+ */
+function canSupportCycles(allowedDirections: Direction[]): boolean {
+	if (allowedDirections.length < 2) return false;
+
+	const slopes = new Set<number | null>();
+	for (const direction of allowedDirections) {
+		slopes.add(getDirectionSlope(direction));
+	}
+
+	// Need at least 2 different slopes to form a cycle
+	// (e.g., horizontal + vertical can form rectangles)
+	return slopes.size >= 2;
 }
 
 // ============================================================================
@@ -177,6 +226,335 @@ function filterWordBank(words: string[], gridSize: number): string[] {
 	}
 
 	return filtered;
+}
+
+// ============================================================================
+// Phase 1.5: Cycle Detection Functions
+// ============================================================================
+
+/**
+ * Calculates the bounding box of a cycle in relative coordinates
+ */
+function calculateCycleBounds(cycleWords: CycleWord[]): {
+	minRow: number;
+	maxRow: number;
+	minCol: number;
+	maxCol: number;
+	width: number;
+	height: number;
+} {
+	let minRow = 0;
+	let maxRow = 0;
+	let minCol = 0;
+	let maxCol = 0;
+
+	for (const cw of cycleWords) {
+		const delta = DIRECTION_DELTAS[cw.direction];
+		const endRow = cw.row + delta.dr * (cw.word.length - 1);
+		const endCol = cw.col + delta.dc * (cw.word.length - 1);
+
+		minRow = Math.min(minRow, cw.row, endRow);
+		maxRow = Math.max(maxRow, cw.row, endRow);
+		minCol = Math.min(minCol, cw.col, endCol);
+		maxCol = Math.max(maxCol, cw.col, endCol);
+	}
+
+	return {
+		minRow,
+		maxRow,
+		minCol,
+		maxCol,
+		width: maxCol - minCol + 1,
+		height: maxRow - minRow + 1
+	};
+}
+
+/**
+ * Recursively searches for word cycles using depth-first search
+ */
+function addToCycle(
+	firstWord: string,
+	firstDirection: Direction,
+	firstCrossingLetter: string,
+	firstCrossingPosition: { row: number; col: number },
+	usedWords: Set<string>,
+	cycleSoFar: CycleWord[],
+	finalCrossingPositions: { row: number; col: number }[],
+	wordBank: string[],
+	allowedDirections: Direction[],
+	excludedWords: Set<string>,
+	foundCycles: WordCycle[],
+	gridSize: number,
+	cyclesForThisWord: { count: number },
+	maxCyclesPerWord: number,
+	maxDepth: number = 8
+): void {
+	// Base case: cycle is too deep
+	if (cycleSoFar.length >= maxDepth) return;
+
+	// Early exit if we've found enough cycles for this starting word
+	if (cyclesForThisWord.count >= maxCyclesPerWord) return;
+
+	// Try each word in the word bank
+	for (const word of wordBank) {
+		// Skip excluded words
+		if (excludedWords.has(word)) continue;
+
+		// Skip already used words
+		if (usedWords.has(word)) continue;
+
+		// Find all occurrences of firstCrossingLetter in this word
+		for (let letterIndex = 0; letterIndex < word.length; letterIndex++) {
+			if (word[letterIndex] !== firstCrossingLetter) continue;
+
+			// Skip first letter (can't overlap due to first letter uniqueness constraint)
+			if (letterIndex === 0) continue;
+
+			// Shuffle allowed directions for random exploration
+			const shuffledDirections = shuffleArray(allowedDirections);
+
+			// Try each allowed direction for this word
+			for (const direction of shuffledDirections) {
+				const delta = DIRECTION_DELTAS[direction];
+
+				// Calculate where this word would start if placed to cross at firstCrossingPosition
+				const wordStartRow = firstCrossingPosition.row - delta.dr * letterIndex;
+				const wordStartCol = firstCrossingPosition.col - delta.dc * letterIndex;
+
+				// Create the cycle word entry
+				const cycleWord: CycleWord = {
+					word,
+					row: wordStartRow,
+					col: wordStartCol,
+					direction,
+					crossingIndex: letterIndex
+				};
+
+				// Calculate all positions this word would occupy
+				const wordPositions: { row: number; col: number }[] = [];
+				for (let i = 0; i < word.length; i++) {
+					wordPositions.push({
+						row: wordStartRow + delta.dr * i,
+						col: wordStartCol + delta.dc * i
+					});
+				}
+
+				// Check if any of these positions (except the crossing point) overlap with existing cycle words
+				let hasInvalidOverlap = false;
+				for (const pos of wordPositions) {
+					// Skip the crossing point - that's expected
+					if (pos.row === firstCrossingPosition.row && pos.col === firstCrossingPosition.col)
+						continue;
+
+					// Check against all existing words in cycle
+					for (const existingWord of cycleSoFar) {
+						const existingDelta = DIRECTION_DELTAS[existingWord.direction];
+						for (let i = 0; i < existingWord.word.length; i++) {
+							const existingPos = {
+								row: existingWord.row + existingDelta.dr * i,
+								col: existingWord.col + existingDelta.dc * i
+							};
+
+							if (pos.row === existingPos.row && pos.col === existingPos.col) {
+								// Found an overlap - check if it's valid
+								const letterAtPos = word[wordPositions.indexOf(pos)];
+								const existingLetterAtPos = existingWord.word[i];
+
+								if (letterAtPos !== existingLetterAtPos) {
+									hasInvalidOverlap = true;
+									break;
+								}
+
+								// Don't allow overlapping first letters
+								if (i === 0 || wordPositions.indexOf(pos) === 0) {
+									hasInvalidOverlap = true;
+									break;
+								}
+							}
+						}
+						if (hasInvalidOverlap) break;
+					}
+					if (hasInvalidOverlap) break;
+				}
+
+				if (hasInvalidOverlap) continue;
+
+				// Check bounding box before continuing - prune if cycle would exceed grid size
+				const newCycleSoFar = [...cycleSoFar, cycleWord];
+				const bounds = calculateCycleBounds(newCycleSoFar);
+				if (bounds.width > gridSize || bounds.height > gridSize) {
+					// This word would make the cycle too large to fit in the grid
+					continue;
+				}
+
+				// Check if this word closes the cycle (crosses back with the first word)
+				let closingIndex = -1;
+				for (let i = 1; i < word.length; i++) {
+					// Skip first letter
+					const pos = wordPositions[i];
+					for (let j = 0; j < finalCrossingPositions.length; j++) {
+						const finalPos = finalCrossingPositions[j];
+						if (pos.row === finalPos.row && pos.col === finalPos.col) {
+							// Check letter match
+							if (word[i] === firstWord[j + 1]) {
+								// +1 because finalCrossingPositions skips first letter
+								closingIndex = i;
+								break;
+							}
+						}
+					}
+					if (closingIndex !== -1) break;
+				}
+
+				if (closingIndex !== -1 && cycleSoFar.length >= 2) {
+					// Found a cycle!
+					const completeCycle: WordCycle = {
+						words: newCycleSoFar,
+						usedWords: new Set([...usedWords, word])
+					};
+					foundCycles.push(completeCycle);
+					cyclesForThisWord.count++;
+
+					// Early exit if we've found enough cycles for this starting word
+					if (cyclesForThisWord.count >= maxCyclesPerWord) return;
+
+					// Continue searching for more cycles
+					continue;
+				}
+
+				// Not a closing word - recurse to continue building the cycle
+				// Create array of letter positions and shuffle for random exploration
+				const recursionPositions = Array.from({ length: word.length - 1 }, (_, i) => i + 1);
+				const shuffledRecursionPositions = shuffleArray(recursionPositions);
+
+				// Try to extend the cycle from each crossing position
+				for (const i of shuffledRecursionPositions) {
+					const nextLetter = word[i];
+					const nextPosition = wordPositions[i];
+
+					const newUsedWords = new Set(usedWords);
+					newUsedWords.add(word);
+
+					addToCycle(
+						firstWord,
+						firstDirection,
+						nextLetter,
+						nextPosition,
+						newUsedWords,
+						newCycleSoFar,
+						finalCrossingPositions,
+						wordBank,
+						allowedDirections,
+						excludedWords,
+						foundCycles,
+						gridSize,
+						cyclesForThisWord,
+						maxCyclesPerWord,
+						maxDepth
+					);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Finds all word cycles in the word bank
+ */
+function findWordCycles(
+	wordBank: string[],
+	allowedDirections: Direction[],
+	gridSize: number,
+	maxCycles: number = 100,
+	maxCyclesPerWord: number = 10
+): WordCycle[] {
+	const foundCycles: WordCycle[] = [];
+	const excludedWords = new Set<string>();
+
+	// Shuffle word bank for randomization
+	const shuffledWordBank = shuffleArray(wordBank);
+
+	// Try starting with each word
+	for (const firstWord of shuffledWordBank) {
+		if (excludedWords.has(firstWord)) continue;
+
+		// Early exit if we've found enough cycles
+		if (foundCycles.length >= maxCycles) {
+			console.log(`[CYCLE DETECTION] Stopped early after finding ${maxCycles} cycles`);
+			break;
+		}
+
+		// Track cycles found for this starting word
+		const cyclesBeforeThisWord = foundCycles.length;
+
+		// Place the first word at origin going in first allowed direction (relative positioning)
+		const firstDirection = allowedDirections[0];
+		const delta = DIRECTION_DELTAS[firstDirection];
+
+		// Calculate positions this word occupies (excluding first letter for crossing)
+		const finalCrossingPositions: { row: number; col: number }[] = [];
+		for (let i = 1; i < firstWord.length; i++) {
+			finalCrossingPositions.push({
+				row: delta.dr * i,
+				col: delta.dc * i
+			});
+		}
+
+		// Track cycles found for this starting word
+		const cyclesForThisWord = { count: 0 };
+
+		// Create array of letter positions and shuffle for random exploration
+		const letterPositions = Array.from({ length: firstWord.length - 1 }, (_, i) => i + 1);
+		const shuffledPositions = shuffleArray(letterPositions);
+
+		// Try to build cycles starting from each letter of the first word (except first)
+		for (const i of shuffledPositions) {
+			// Check if we've hit the per-word limit
+			if (cyclesForThisWord.count >= maxCyclesPerWord) {
+				break;
+			}
+
+			const letter = firstWord[i];
+			const position = { row: delta.dr * i, col: delta.dc * i };
+
+			const usedWords = new Set([firstWord]);
+			const cycleSoFar: CycleWord[] = [
+				{
+					word: firstWord,
+					row: 0,
+					col: 0,
+					direction: firstDirection,
+					crossingIndex: 0 // First word doesn't have a crossing index from previous
+				}
+			];
+
+			addToCycle(
+				firstWord,
+				firstDirection,
+				letter,
+				position,
+				usedWords,
+				cycleSoFar,
+				finalCrossingPositions,
+				wordBank,
+				allowedDirections,
+				excludedWords,
+				foundCycles,
+				gridSize,
+				cyclesForThisWord,
+				maxCyclesPerWord
+			);
+		}
+
+		// Exclude this word and all cycles containing it from future searches
+		excludedWords.add(firstWord);
+
+		// Stop if we have fewer than 3 words remaining
+		if (wordBank.length - excludedWords.size < 3) break;
+	}
+
+	console.log(`[CYCLE DETECTION] Found ${foundCycles.length} cycles`);
+	return foundCycles;
 }
 
 // ============================================================================
@@ -326,6 +704,157 @@ function findValidPlacements(
 	}
 
 	return { intersecting, nonIntersecting };
+}
+
+/**
+ * Attempts to place a cycle on the grid at a specific anchor position
+ * Returns placed words if successful, null if placement fails
+ */
+function tryPlaceCycleAt(
+	cycle: WordCycle,
+	anchorRow: number,
+	anchorCol: number,
+	grid: InternalGridCell[][],
+	placedWords: Map<string, PlacedWord>
+): PlacedWord[] | null {
+	// Calculate absolute positions for all words in the cycle
+	const cycleWordsWithPositions: Array<{
+		word: string;
+		row: number;
+		col: number;
+		direction: Direction;
+	}> = cycle.words.map((cw) => ({
+		word: cw.word,
+		row: anchorRow + cw.row,
+		col: anchorCol + cw.col,
+		direction: cw.direction
+	}));
+
+	// Validate all words can be placed
+	for (const cw of cycleWordsWithPositions) {
+		const candidate: PlacementCandidate = {
+			row: cw.row,
+			col: cw.col,
+			direction: cw.direction,
+			intersectionCount: 0
+		};
+
+		// Check if this word can be placed
+		// For cycle validation, we need a modified check that allows intersections within the cycle
+		const cells = getWordCells(cw.word, cw.row, cw.col, cw.direction, grid.length);
+		if (!cells) return null; // Out of bounds
+
+		// Check first letter uniqueness
+		const firstCell = grid[cells[0].row][cells[0].col];
+		if (firstCell.letter !== '') return null;
+
+		// Check letter compatibility
+		for (let i = 0; i < cw.word.length; i++) {
+			const cell = grid[cells[i].row][cells[i].col];
+			const letter = cw.word[i];
+
+			if (cell.letter !== '' && cell.letter !== letter) {
+				return null; // Letter mismatch
+			}
+
+			if (cell.isFirstLetter && i !== 0) {
+				return null; // Would overlap another word's first letter
+			}
+		}
+
+		// Check for duplicate word
+		if (placedWords.has(cw.word)) return null;
+	}
+
+	// All words can be placed - do the placement
+	const placed: PlacedWord[] = [];
+	let wordIndex = 0;
+
+	for (const cw of cycleWordsWithPositions) {
+		const cells = getWordCells(cw.word, cw.row, cw.col, cw.direction, grid.length)!;
+		const wordId = `${cw.word}-cycle-${wordIndex}`;
+
+		// Place letters on grid
+		for (let i = 0; i < cw.word.length; i++) {
+			const cell = grid[cells[i].row][cells[i].col];
+			cell.letter = cw.word[i];
+
+			if (i === 0) {
+				cell.isFirstLetter = true;
+			}
+
+			if (!cell.wordIds) {
+				cell.wordIds = new Set();
+			}
+			cell.wordIds.add(wordId);
+		}
+
+		placed.push({
+			word: cw.word,
+			id: wordId,
+			startRow: cw.row,
+			startCol: cw.col,
+			direction: cw.direction,
+			cells
+		});
+
+		wordIndex++;
+	}
+
+	return placed;
+}
+
+/**
+ * Finds all valid placements for a cycle on the grid
+ */
+function findValidCyclePlacements(
+	cycle: WordCycle,
+	grid: InternalGridCell[][],
+	placedWords: Map<string, PlacedWord>
+): CyclePlacement[] {
+	const validPlacements: CyclePlacement[] = [];
+
+	// Calculate the bounding box of the cycle (in relative coordinates)
+	let minRow = 0;
+	let maxRow = 0;
+	let minCol = 0;
+	let maxCol = 0;
+
+	for (const cw of cycle.words) {
+		const delta = DIRECTION_DELTAS[cw.direction];
+		const endRow = cw.row + delta.dr * (cw.word.length - 1);
+		const endCol = cw.col + delta.dc * (cw.word.length - 1);
+
+		minRow = Math.min(minRow, cw.row, endRow);
+		maxRow = Math.max(maxRow, cw.row, endRow);
+		minCol = Math.min(minCol, cw.col, endCol);
+		maxCol = Math.max(maxCol, cw.col, endCol);
+	}
+
+	const cycleHeight = maxRow - minRow + 1;
+	const cycleWidth = maxCol - minCol + 1;
+
+	// Try placing the cycle at each possible position in the grid
+	for (let anchorRow = -minRow; anchorRow <= grid.length - cycleHeight - minRow; anchorRow++) {
+		for (let anchorCol = -minCol; anchorCol <= grid.length - cycleWidth - minCol; anchorCol++) {
+			// Create a temporary grid copy to test placement
+			const testGrid = grid.map((row) =>
+				row.map((cell) => ({ ...cell, wordIds: new Set(cell.wordIds) }))
+			);
+
+			const placed = tryPlaceCycleAt(cycle, anchorRow, anchorCol, testGrid, placedWords);
+
+			if (placed) {
+				validPlacements.push({
+					cycle,
+					anchorRow,
+					anchorCol
+				});
+			}
+		}
+	}
+
+	return validPlacements;
 }
 
 // ============================================================================
@@ -546,7 +1075,8 @@ function fillEmptyCells(
 function scoreGrid(
 	grid: InternalGridCell[][],
 	placedWords: PlacedWord[],
-	allowedDirections: Direction[]
+	allowedDirections: Direction[],
+	cyclesPlaced: number = 0
 ): number {
 	if (placedWords.length === 0) return 0;
 
@@ -600,12 +1130,16 @@ function scoreGrid(
 	}
 	const uniquenessScore = totalUniqueness / placedWords.length;
 
+	// 5. Cycle bonus (reward grids with cycles)
+	const cycleScore = cyclesPlaced;
+
 	// Calculate weighted score
 	const score =
 		wordsPlacedScore * QUALITY_WEIGHTS.wordsPlaced +
 		directionalBalanceScore * QUALITY_WEIGHTS.directionalBalance +
 		spatialDistributionScore * QUALITY_WEIGHTS.spatialDistribution +
-		uniquenessScore * QUALITY_WEIGHTS.uniquenessScore;
+		uniquenessScore * QUALITY_WEIGHTS.uniquenessScore +
+		cycleScore * QUALITY_WEIGHTS.cycleBonus;
 
 	return score;
 }
@@ -654,14 +1188,69 @@ function convertToExternalGrid(grid: InternalGridCell[][]): GridCell[][] {
  */
 function generateSingleGrid(
 	wordBank: string[],
-	config: GridConfig
-): { grid: InternalGridCell[][]; placedWords: PlacedWord[]; wordsAttempted: number } {
+	config: GridConfig,
+	cycles: WordCycle[]
+): {
+	grid: InternalGridCell[][];
+	placedWords: PlacedWord[];
+	wordsAttempted: number;
+	cyclesPlaced: number;
+} {
 	const grid = createEmptyGrid(config.gridSize);
 	const placedWords = new Map<string, PlacedWord>();
 	const placedWordsList: PlacedWord[] = [];
+	let cyclesPlaced = 0;
 
-	// Shuffle word bank
-	const shuffledWords = shuffleArray(wordBank);
+	// Phase 1: Try to place cycles first
+	const consumedWords = new Set<string>();
+	const shuffledCycles = shuffleArray(cycles);
+
+	for (const cycle of shuffledCycles) {
+		// Skip if any word in this cycle has already been placed
+		let hasConsumedWord = false;
+		for (const word of cycle.usedWords) {
+			if (consumedWords.has(word)) {
+				hasConsumedWord = true;
+				break;
+			}
+		}
+		if (hasConsumedWord) continue;
+
+		// Find valid placements for this cycle
+		const validPlacements = findValidCyclePlacements(cycle, grid, placedWords);
+
+		if (validPlacements.length > 0) {
+			// Pick a random placement
+			const placement = validPlacements[Math.floor(Math.random() * validPlacements.length)];
+
+			// Place the cycle
+			const placed = tryPlaceCycleAt(
+				placement.cycle,
+				placement.anchorRow,
+				placement.anchorCol,
+				grid,
+				placedWords
+			);
+
+			if (placed) {
+				// Add all placed words to our tracking
+				for (const pw of placed) {
+					placedWords.set(pw.word, pw);
+					placedWordsList.push(pw);
+					consumedWords.add(pw.word);
+				}
+				cyclesPlaced++;
+				console.log(
+					`[CYCLE PLACED] Cycle with ${placed.length} words at (${placement.anchorRow}, ${placement.anchorCol})`
+				);
+			}
+		}
+	}
+
+	// Phase 2: Fill remaining space with individual words
+	// Shuffle word bank and remove consumed words
+	const remainingWords = wordBank.filter((w) => !consumedWords.has(w));
+	const shuffledWords = shuffleArray(remainingWords);
 
 	// Calculate target capacity
 	const targetCapacity =
@@ -672,7 +1261,7 @@ function generateSingleGrid(
 	// Get intersection bias
 	const intersectionBias = config.intersectionBias ?? INTERSECTION_BIAS[config.density];
 
-	let currentCapacity = 0;
+	let currentCapacity = placedWordsList.reduce((sum, pw) => sum + pw.word.length, 0);
 	let wordsAttempted = 0;
 
 	// Place words
@@ -725,7 +1314,7 @@ function generateSingleGrid(
 		}
 	}
 
-	return { grid, placedWords: placedWordsList, wordsAttempted };
+	return { grid, placedWords: placedWordsList, wordsAttempted, cyclesPlaced };
 }
 
 /**
@@ -746,6 +1335,16 @@ export function generateGrid(
 	const wordBankSet = new Set(filtered);
 	const preprocessingMs = performance.now() - preprocessingStart;
 
+	// Phase 1.5: Cycle Detection
+	const cycleDetectionStart = performance.now();
+	let cycles: WordCycle[] = [];
+	if (canSupportCycles(allowedDirections)) {
+		cycles = findWordCycles(filtered, allowedDirections, gridSize);
+	} else {
+		console.log('[CYCLE DETECTION] Skipped - allowed directions cannot support cycles');
+	}
+	const cycleDetectionMs = performance.now() - cycleDetectionStart;
+
 	const config: GridConfig = {
 		gridSize,
 		allowedDirections,
@@ -757,18 +1356,26 @@ export function generateGrid(
 	let bestGrid: InternalGridCell[][] | null = null;
 	let bestPlacedWords: PlacedWord[] = [];
 	let bestScore = -1;
+	let bestCyclesPlaced = 0;
 	let totalWordsAttempted = 0;
+	let totalCyclesPlaced = 0;
 
 	for (let attempt = 0; attempt < MONTE_CARLO_ATTEMPTS; attempt++) {
-		const { grid, placedWords, wordsAttempted } = generateSingleGrid(filtered, config);
+		const { grid, placedWords, wordsAttempted, cyclesPlaced } = generateSingleGrid(
+			filtered,
+			config,
+			cycles
+		);
 		totalWordsAttempted += wordsAttempted;
+		totalCyclesPlaced += cyclesPlaced;
 
-		const score = scoreGrid(grid, placedWords, allowedDirections);
+		const score = scoreGrid(grid, placedWords, allowedDirections, cyclesPlaced);
 
 		if (score > bestScore) {
 			bestScore = score;
 			bestGrid = grid;
 			bestPlacedWords = placedWords;
+			bestCyclesPlaced = cyclesPlaced;
 		}
 	}
 
@@ -783,7 +1390,9 @@ export function generateGrid(
 
 	// Phase 5: Final scoring
 	const scoringStart = performance.now();
-	const finalScore = bestGrid ? scoreGrid(bestGrid, bestPlacedWords, allowedDirections) : 0;
+	const finalScore = bestGrid
+		? scoreGrid(bestGrid, bestPlacedWords, allowedDirections, bestCyclesPlaced)
+		: 0;
 	const scoringMs = performance.now() - scoringStart;
 
 	const totalMs = performance.now() - totalStart;
@@ -794,17 +1403,23 @@ export function generateGrid(
 
 	const metrics: PerformanceMetrics = {
 		preprocessingMs,
+		cycleDetectionMs,
 		placementMs,
 		randomFillMs,
 		scoringMs,
 		totalMs,
 		wordsPlaced: bestPlacedWords.length,
-		wordsAttempted: totalWordsAttempted / MONTE_CARLO_ATTEMPTS
+		wordsAttempted: totalWordsAttempted / MONTE_CARLO_ATTEMPTS,
+		cyclesDetected: cycles.length,
+		cyclesPlaced: bestCyclesPlaced
 	};
 
 	console.log('Grid generation metrics:', metrics);
 	console.log('Final score:', finalScore);
 	console.log('Words placed:', wordList);
+	if (bestCyclesPlaced > 0) {
+		console.log(`🔄 Cycles placed: ${bestCyclesPlaced} out of ${cycles.length} detected`);
+	}
 
 	return { grid: convertToExternalGrid(externalGrid), wordList, metrics };
 }
