@@ -19,6 +19,11 @@
 	let wordList = $state(settings.wordList);
 	let allowedDirections = $state({ ...settings.allowedDirections });
 
+	// Group word lists by category
+	const wikipediaLists = WORD_LISTS.filter((w) => w.value.startsWith('wikipedia-'));
+	const moviesLists = WORD_LISTS.filter((w) => w.value.startsWith('movies-'));
+	const booksLists = WORD_LISTS.filter((w) => w.value.startsWith('books-'));
+
 	// Handle navigation back
 	function handleBack() {
 		goto(`${base}/`);
@@ -135,26 +140,82 @@
 		<!-- Word List -->
 		<div class="mb-6">
 			<h3 class="text-foreground mb-3 text-lg font-semibold">Word List Theme</h3>
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				{#each WORD_LISTS as list}
-					<label class="flex cursor-pointer">
-						<input
-							type="radio"
-							name="wordList"
-							value={list.value}
-							bind:group={wordList}
-							class="sr-only"
-						/>
-						<div
-							class="border-border hover:border-primary data-[checked]:border-primary data-[checked]:bg-primary/10 flex w-full flex-col items-start justify-center rounded-lg border-2 p-4 transition-colors"
-							data-checked={wordList === list.value ? '' : undefined}
-						>
-							<div class="text-foreground mb-1 font-semibold">{list.label}</div>
-							<div class="text-muted-foreground text-sm">{list.description}</div>
-						</div>
-					</label>
-				{/each}
+
+			<!-- Wikipedia Category -->
+			<div class="mb-4">
+				<h4 class="text-foreground mb-2 text-center font-medium">Wikipedia</h4>
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+					{#each wikipediaLists as list}
+						<label class="flex cursor-pointer">
+							<input
+								type="radio"
+								name="wordList"
+								value={list.value}
+								bind:group={wordList}
+								class="sr-only"
+							/>
+							<div
+								class="border-border hover:border-primary data-[checked]:border-primary data-[checked]:bg-primary/10 flex w-full flex-col items-start justify-center rounded-lg border-2 p-4 transition-colors"
+								data-checked={wordList === list.value ? '' : undefined}
+							>
+								<div class="text-foreground mb-1 font-semibold">{list.label}</div>
+								<div class="text-muted-foreground text-sm">{list.description}</div>
+							</div>
+						</label>
+					{/each}
+				</div>
 			</div>
+
+			<!-- Movies Category -->
+			<div class="mb-4">
+				<h4 class="text-foreground mb-2 text-center font-medium">Movies</h4>
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+					{#each moviesLists as list}
+						<label class="flex cursor-pointer">
+							<input
+								type="radio"
+								name="wordList"
+								value={list.value}
+								bind:group={wordList}
+								class="sr-only"
+							/>
+							<div
+								class="border-border hover:border-primary data-[checked]:border-primary data-[checked]:bg-primary/10 flex w-full flex-col items-start justify-center rounded-lg border-2 p-4 transition-colors"
+								data-checked={wordList === list.value ? '' : undefined}
+							>
+								<div class="text-foreground mb-1 font-semibold">{list.label}</div>
+								<div class="text-muted-foreground text-sm">{list.description}</div>
+							</div>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Books Category -->
+			<div class="mb-4">
+				<h4 class="text-foreground mb-2 text-center font-medium">Books</h4>
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+					{#each booksLists as list}
+						<label class="flex cursor-pointer">
+							<input
+								type="radio"
+								name="wordList"
+								value={list.value}
+								bind:group={wordList}
+								class="sr-only"
+							/>
+							<div
+								class="border-border hover:border-primary data-[checked]:border-primary data-[checked]:bg-primary/10 flex w-full flex-col items-start justify-center rounded-lg border-2 p-4 transition-colors"
+								data-checked={wordList === list.value ? '' : undefined}
+							>
+								<div class="text-foreground mb-1 font-semibold">{list.label}</div>
+								<div class="text-muted-foreground text-sm">{list.description}</div>
+							</div>
+						</label>
+					{/each}
+				</div>
+			</div>
+
 			<p class="text-muted-foreground mt-2 text-sm">Choose the theme for words to find</p>
 		</div>
 

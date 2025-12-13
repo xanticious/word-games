@@ -1,5 +1,8 @@
 node_modules
 
+
+
+
 # Output
 .output
 .vercel
@@ -21,3 +24,8 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# IMDB extracted data files
+imdb/name.basics.tsv
+imdb/title.basics.tsv
+imdb/title.principals.tsv

@@ -63,7 +63,8 @@ export async function getWordList(
 	wordListType: WordListType,
 	gridSize: number
 ): Promise<WordListResult> {
-	if (wordListType === 'wikipedia') {
+	// Wikipedia themes
+	if (wordListType === 'wikipedia-random') {
 		// Try to fetch Wikipedia article, retry if needed
 		let attempts = 0;
 		const maxAttempts = 5;
@@ -99,9 +100,115 @@ export async function getWordList(
 		};
 	}
 
-	// For other word list types, return mock data for now
+	// Movies themes
+	if (wordListType === 'movies-random-list') {
+		// TODO: Implement random movie titles fetching
+		return {
+			words: ['INCEPTION', 'AVATAR', 'TITANIC', 'GLADIATOR', 'MATRIX', 'INTERSTELLAR'],
+			sourceName: 'Random Movies (Mock)'
+		};
+	}
+
+	if (wordListType === 'movies-actors-list') {
+		// TODO: Implement random actors fetching
+		return {
+			words: ['DICAPRIO', 'HANKS', 'STREEP', 'DENIRO', 'CRUISE', 'DOWNEY'],
+			sourceName: 'Random Actors (Mock)'
+		};
+	}
+
+	if (wordListType === 'movies-random-blurb') {
+		// TODO: Implement random movie blurb fetching and word extraction
+		return {
+			words: ['DREAM', 'REALITY', 'SUBCONSCIOUS', 'HEIST', 'LAYER', 'ARCHITECT'],
+			sourceName: 'Inception (Mock)',
+			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
+		};
+	}
+
+	if (wordListType === 'movies-random-cast') {
+		// TODO: Implement random movie cast fetching
+		return {
+			words: ['DICAPRIO', 'COTILLARD', 'PAGE', 'HARDY', 'WATANABE', 'MURPHY'],
+			sourceName: 'Inception Cast (Mock)',
+			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
+		};
+	}
+
+	if (wordListType === 'movies-random-characters') {
+		// TODO: Implement random movie characters fetching
+		return {
+			words: ['COBB', 'MAL', 'ARIADNE', 'EAMES', 'ARTHUR', 'SAITO'],
+			sourceName: 'Inception Characters (Mock)',
+			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
+		};
+	}
+
+	if (wordListType === 'movies-actor-blurb') {
+		// TODO: Implement random actor biography word extraction
+		return {
+			words: ['ACTOR', 'HOLLYWOOD', 'OSCAR', 'PERFORMANCE', 'CAREER', 'DIRECTOR'],
+			sourceName: 'Leonardo DiCaprio Bio (Mock)',
+			sourceUrl: 'https://www.imdb.com/name/nm0000138/'
+		};
+	}
+
+	if (wordListType === 'movies-actor-filmography') {
+		// TODO: Implement random actor filmography fetching
+		return {
+			words: ['INCEPTION', 'TITANIC', 'REVENANT', 'DJANGO', 'DEPARTED', 'GATSBY'],
+			sourceName: 'Leonardo DiCaprio Filmography (Mock)',
+			sourceUrl: 'https://www.imdb.com/name/nm0000138/'
+		};
+	}
+
+	// Books themes
+	if (wordListType === 'books-random-list') {
+		// TODO: Implement random book titles fetching
+		return {
+			words: ['GATSBY', 'MOCKINGBIRD', 'CATCHER', 'PRIDE', 'PREJUDICE', 'ODYSSEY'],
+			sourceName: 'Random Books (Mock)'
+		};
+	}
+
+	if (wordListType === 'books-authors-list') {
+		// TODO: Implement random authors fetching
+		return {
+			words: ['FITZGERALD', 'AUSTEN', 'HEMINGWAY', 'SHAKESPEARE', 'ORWELL', 'TOLKIEN'],
+			sourceName: 'Random Authors (Mock)'
+		};
+	}
+
+	if (wordListType === 'books-goodreads-blurb') {
+		// TODO: Implement random GoodReads book blurb word extraction
+		return {
+			words: ['GATSBY', 'JAZZ', 'AGE', 'WEALTH', 'LOVE', 'DREAM', 'AMERICA'],
+			sourceName: 'The Great Gatsby (Mock)',
+			sourceUrl: 'https://www.goodreads.com/book/show/4671.The_Great_Gatsby'
+		};
+	}
+
+	if (wordListType === 'books-random-characters') {
+		// TODO: Implement random book characters fetching
+		return {
+			words: ['GATSBY', 'DAISY', 'NICK', 'BUCHANAN', 'JORDAN', 'WILSON'],
+			sourceName: 'The Great Gatsby Characters (Mock)',
+			sourceUrl: 'https://www.goodreads.com/book/show/4671.The_Great_Gatsby'
+		};
+	}
+
+	if (wordListType === 'books-author-works') {
+		// TODO: Implement random author works fetching
+		return {
+			words: ['GATSBY', 'PARADISE', 'BEAUTIFUL', 'DAMNED', 'TENDER', 'NIGHT'],
+			sourceName: 'F. Scott Fitzgerald Works (Mock)',
+			sourceUrl: 'https://www.goodreads.com/author/show/3190.F_Scott_Fitzgerald'
+		};
+	}
+
+	// Fallback for unknown types
 	return {
 		words: ['AAA', 'AAAAA'],
-		sourceName: 'Mock Data'
+		sourceName: 'Unknown Type (Mock)'
 	};
 }

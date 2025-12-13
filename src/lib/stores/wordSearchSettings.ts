@@ -12,7 +12,7 @@ const STORAGE_KEY = 'word-search-settings';
 const defaultSettings: WordSearchSettings = {
 	gridSize: 'medium',
 	density: 'normal',
-	wordList: 'movies',
+	wordList: 'wikipedia-random',
 	allowedDirections: {
 		right: true,
 		down: true,

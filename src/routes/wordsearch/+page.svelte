@@ -45,7 +45,9 @@
 	// Read settings from URL parameters
 	let gridSize = $derived(($page.url.searchParams.get('gridSize') as GridSize) || 'medium');
 	let density = $derived(($page.url.searchParams.get('density') as Density) || 'normal');
-	let wordList = $derived(($page.url.searchParams.get('wordList') as WordListType) || 'movies');
+	let wordList = $derived(
+		($page.url.searchParams.get('wordList') as WordListType) || 'movies-random-list'
+	);
 	let directions = $derived($page.url.searchParams.get('directions') || 'right,down');
 
 	// Parse directions string into array

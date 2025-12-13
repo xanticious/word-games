@@ -5,13 +5,19 @@
 export type GridSize = 'small' | 'medium' | 'large';
 export type Density = 'sparse' | 'normal' | 'dense';
 export type WordListType =
-	| 'characters'
-	| 'movies'
-	| 'books'
-	| 'wikipedia'
-	| 'imdb-movie'
-	| 'imdb-actor'
-	| 'goodreads';
+	// Wikipedia
+	| 'wikipedia-random'
+	// Movies
+	| 'movies-random-list'
+	| 'movies-actors-list'
+	| 'movies-random-cast'
+	| 'movies-actor-filmography'
+	// Books
+	| 'books-random-list'
+	| 'books-authors-list'
+	| 'books-goodreads-blurb'
+	| 'books-random-characters'
+	| 'books-author-works';
 
 export type Direction = 'right' | 'down' | 'left' | 'up' | 'ne' | 'se' | 'sw' | 'nw';
 
@@ -87,40 +93,58 @@ export const DENSITIES: DensityInfo[] = [
 ];
 
 export const WORD_LISTS: WordListInfo[] = [
+	// Wikipedia
 	{
-		value: 'characters',
-		label: 'Characters',
-		description: 'Characters from a random book or movie'
+		value: 'wikipedia-random',
+		label: 'Random Page',
+		description: 'Words from a random Wikipedia article'
+	},
+	// Movies
+	{
+		value: 'movies-random-list',
+		label: 'Random List of Movies',
+		description: 'Random collection of movie titles'
 	},
 	{
-		value: 'movies',
-		label: 'Movies',
-		description: 'Names of popular movies'
+		value: 'movies-actors-list',
+		label: 'Random List of Actors',
+		description: 'Random collection of actor names'
 	},
 	{
-		value: 'books',
-		label: 'Books',
-		description: 'Names of popular books'
+		value: 'movies-random-cast',
+		label: 'Random Movie Cast',
+		description: 'Actor names from a random movie'
 	},
 	{
-		value: 'wikipedia',
-		label: 'Wikipedia',
-		description: 'Topics from a random Wikipedia page'
+		value: 'movies-actor-filmography',
+		label: 'Random Actor Filmography',
+		description: 'Movies and shows featuring a random actor'
+	},
+	// Books
+	{
+		value: 'books-random-list',
+		label: 'Random List of Books',
+		description: 'Random collection of book titles'
 	},
 	{
-		value: 'imdb-movie',
-		label: 'IMDB (Movie)',
-		description: 'Random movie from IMDB'
+		value: 'books-authors-list',
+		label: 'Random List of Authors',
+		description: 'Random collection of author names'
 	},
 	{
-		value: 'imdb-actor',
-		label: 'IMDB (Actor)',
-		description: 'Random actor from IMDB'
+		value: 'books-goodreads-blurb',
+		label: 'Random GoodReads Book Blurb',
+		description: 'Words from a random book description'
 	},
 	{
-		value: 'goodreads',
-		label: 'GoodReads',
-		description: 'Random book review from GoodReads'
+		value: 'books-random-characters',
+		label: 'Random Book Characters',
+		description: 'Character names from a random book'
+	},
+	{
+		value: 'books-author-works',
+		label: "Random Author's Works",
+		description: 'Book titles from a random author'
 	}
 ];
 
