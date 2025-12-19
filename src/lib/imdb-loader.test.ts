@@ -107,9 +107,13 @@ describe('IMDb Loader', () => {
 	});
 
 	describe('getMovieCast', () => {
-		it('returns actor names for a movie', () => {
+		it('returns WordEntry objects with actor names', () => {
 			const cast = getMovieCast(mockData, 'tt0111161');
-			expect(cast).toEqual(['Tim Robbins', 'Morgan Freeman', 'Bob Gunton']);
+			expect(cast).toEqual([
+				{ displayValue: 'TIM ROBBINS', gridValue: 'TIMROBBINS' },
+				{ displayValue: 'MORGAN FREEMAN', gridValue: 'MORGANFREEMAN' },
+				{ displayValue: 'BOB GUNTON', gridValue: 'BOBGUNTON' }
+			]);
 		});
 
 		it('returns empty array for non-existent movie', () => {
@@ -137,14 +141,18 @@ describe('IMDb Loader', () => {
 			};
 
 			const cast = getMovieCast(dataWithMissingActor, 'tt0111161');
-			expect(cast).toEqual(['Tim Robbins']);
+			expect(cast).toEqual([{ displayValue: 'TIM ROBBINS', gridValue: 'TIMROBBINS' }]);
 		});
 	});
 
 	describe('getMovieCharacters', () => {
-		it('returns character names for a movie', () => {
+		it('returns WordEntry objects with character names', () => {
 			const characters = getMovieCharacters(mockData, 'tt0111161');
-			expect(characters).toEqual(['Andy Dufresne', 'Ellis Boyd Redding', 'Warden Norton']);
+			expect(characters).toEqual([
+				{ displayValue: 'ANDY DUFRESNE', gridValue: 'ANDYDUFRESNE' },
+				{ displayValue: 'ELLIS BOYD REDDING', gridValue: 'ELLISBOYDREDDING' },
+				{ displayValue: 'WARDEN NORTON', gridValue: 'WARDENNORTON' }
+			]);
 		});
 
 		it('returns empty array for non-existent movie', () => {
@@ -154,9 +162,12 @@ describe('IMDb Loader', () => {
 	});
 
 	describe('getActorFilmography', () => {
-		it('returns movie titles for an actor', () => {
+		it('returns WordEntry objects with movie titles', () => {
 			const movies = getActorFilmography(mockData, 'nm0000151');
-			expect(movies).toEqual(['The Shawshank Redemption', 'The Dark Knight']);
+			expect(movies).toEqual([
+				{ displayValue: 'THE SHAWSHANK REDEMPTION', gridValue: 'THESHAWSHANKREDEMPTION' },
+				{ displayValue: 'THE DARK KNIGHT', gridValue: 'THEDARKKNIGHT' }
+			]);
 		});
 
 		it('returns empty array for non-existent actor', () => {
@@ -184,15 +195,22 @@ describe('IMDb Loader', () => {
 			};
 
 			const movies = getActorFilmography(dataWithMissingMovie, 'nm0000151');
-			expect(movies).toEqual(['The Shawshank Redemption']);
+			expect(movies).toEqual([
+				{ displayValue: 'THE SHAWSHANK REDEMPTION', gridValue: 'THESHAWSHANKREDEMPTION' }
+			]);
 		});
 	});
 
 	describe('getRandomMovies', () => {
-		it('returns requested number of movie titles', () => {
+		it('returns requested number of WordEntry objects', () => {
 			const movies = getRandomMovies(mockData, 2);
 			expect(movies).toHaveLength(2);
-			expect(movies.every((title) => typeof title === 'string')).toBe(true);
+			expect(movies.every((entry) => 'displayValue' in entry && 'gridValue' in entry)).toBe(true);
+			expect(
+				movies.every(
+					(entry) => typeof entry.displayValue === 'string' && typeof entry.gridValue === 'string'
+				)
+			).toBe(true);
 		});
 
 		it('returns all movies if count exceeds available', () => {
@@ -206,7 +224,7 @@ describe('IMDb Loader', () => {
 			const results = new Set<string>();
 			for (let i = 0; i < 10; i++) {
 				const movies = getRandomMovies(mockData, 2);
-				results.add(movies.join(','));
+				results.add(movies.map((m) => m.gridValue).join(','));
 			}
 			// With 10 runs, we should get at least 2 different combinations
 			expect(results.size).toBeGreaterThan(1);
@@ -214,10 +232,15 @@ describe('IMDb Loader', () => {
 	});
 
 	describe('getRandomActors', () => {
-		it('returns requested number of actor names', () => {
+		it('returns requested number of WordEntry objects', () => {
 			const actors = getRandomActors(mockData, 3);
 			expect(actors).toHaveLength(3);
-			expect(actors.every((name) => typeof name === 'string')).toBe(true);
+			expect(actors.every((entry) => 'displayValue' in entry && 'gridValue' in entry)).toBe(true);
+			expect(
+				actors.every(
+					(entry) => typeof entry.displayValue === 'string' && typeof entry.gridValue === 'string'
+				)
+			).toBe(true);
 		});
 
 		it('returns all actors if count exceeds available', () => {
@@ -231,7 +254,7 @@ describe('IMDb Loader', () => {
 			const results = new Set<string>();
 			for (let i = 0; i < 10; i++) {
 				const actors = getRandomActors(mockData, 3);
-				results.add(actors.join(','));
+				results.add(actors.map((a) => a.gridValue).join(','));
 			}
 			// With 10 runs, we should get at least 2 different combinations
 			expect(results.size).toBeGreaterThan(1);

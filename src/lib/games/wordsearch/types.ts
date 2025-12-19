@@ -2,6 +2,17 @@
  * Type definitions for Word Search game
  */
 
+/**
+ * Represents a word in the word search game
+ * Separates the display value (human-readable) from the grid value (sanitized for placement)
+ */
+export interface WordEntry {
+	/** The value displayed to the user (e.g., "THE DARK KNIGHT") */
+	displayValue: string;
+	/** The sanitized value used in the grid (e.g., "THEDARKKNIGHT") */
+	gridValue: string;
+}
+
 export type GridSize = 'small' | 'medium' | 'large';
 export type Density = 'sparse' | 'normal' | 'dense';
 export type WordListType =
@@ -11,6 +22,7 @@ export type WordListType =
 	| 'movies-random-list'
 	| 'movies-actors-list'
 	| 'movies-random-cast'
+	| 'movies-random-characters'
 	| 'movies-actor-filmography'
 	// Books
 	| 'books-random-list'
@@ -114,6 +126,11 @@ export const WORD_LISTS: WordListInfo[] = [
 		value: 'movies-random-cast',
 		label: 'Random Movie Cast',
 		description: 'Actor names from a random movie'
+	},
+	{
+		value: 'movies-random-characters',
+		label: 'Random Movie Characters',
+		description: 'Character names from a random movie'
 	},
 	{
 		value: 'movies-actor-filmography',

@@ -6,6 +6,32 @@
  */
 
 import type { IMDbData } from './types/imdb';
+import type { WordEntry } from './games/wordsearch/types';
+import { base } from '$app/paths';
+
+const MIN_WORD_LENGTH = 4;
+
+/**
+ * Creates a WordEntry from a text string
+ * Sanitizes the text for grid placement while preserving the original for display
+ *
+ * @param text The original text (e.g., "The Dark Knight")
+ * @returns WordEntry with display and grid values, or null if grid value is too short
+ */
+function createWordEntry(text: string): WordEntry | null {
+	// Create display value: trim and convert to uppercase
+	const displayValue = text.trim().toUpperCase();
+
+	// Create grid value: extract only A-Z letters
+	const gridValue = text.replace(/[^a-zA-Z]/g, '').toUpperCase();
+
+	// Filter out if grid value is too short
+	if (gridValue.length < MIN_WORD_LENGTH) {
+		return null;
+	}
+
+	return { displayValue, gridValue };
+}
 
 /**
  * Loads IMDb data from the server
@@ -23,18 +49,33 @@ export async function loadIMDbData(): Promise<IMDbData> {
 	}
 
 	try {
-		const response = await fetch('/data/imdb-data.json.gz');
+		const url = `${base}/data/imdb-data.json.gz`;
+		console.log('[IMDb Loader] Fetching from URL:', url);
+
+		const response = await fetch(url);
+		console.log('[IMDb Loader] Fetch response:', {
+			ok: response.ok,
+			status: response.status,
+			statusText: response.statusText,
+			headers: Object.fromEntries(response.headers.entries())
+		});
 
 		if (!response.ok) {
 			throw new Error(`Failed to fetch IMDb data: ${response.status} ${response.statusText}`);
 		}
 
-		// Decompress using native browser API
-		const decompressedStream = response.body!.pipeThrough(new DecompressionStream('gzip'));
-		const decompressedResponse = new Response(decompressedStream);
+		console.log('[IMDb Loader] Parsing JSON (server already decompressed)...');
+		// Note: The server automatically decompresses .gz files and sets content-encoding: gzip
+		// The browser's fetch API handles this automatically, so we just parse JSON directly
+		const data = await response.json();
+		console.log('[IMDb Loader] Successfully loaded IMDb data:', {
+			movieCount: Object.keys(data.movies || {}).length,
+			actorCount: Object.keys(data.actors || {}).length
+		});
 
-		return await decompressedResponse.json();
+		return data;
 	} catch (error) {
+		console.error('[IMDb Loader] Error occurred:', error);
 		if (error instanceof Error) {
 			throw new Error(`Failed to load IMDb data: ${error.message}`);
 		}
@@ -71,12 +112,16 @@ export function getRandomActor(data: IMDbData) {
  *
  * @param data The IMDb data object
  * @param movieId The movie ID
- * @returns Array of actor names
+ * @returns Array of WordEntry objects with actor names
  */
-export function getMovieCast(data: IMDbData, movieId: string): string[] {
+export function getMovieCast(data: IMDbData, movieId: string): WordEntry[] {
 	const movie = data.movies[movieId];
 	if (!movie) return [];
-	return movie.actorIds.map((actorId) => data.actors[actorId]?.name).filter(Boolean);
+	return movie.actorIds
+		.map((actorId) => data.actors[actorId]?.name)
+		.filter(Boolean)
+		.map((name) => createWordEntry(name))
+		.filter((entry): entry is WordEntry => entry !== null);
 }
 
 /**
@@ -84,11 +129,14 @@ export function getMovieCast(data: IMDbData, movieId: string): string[] {
  *
  * @param data The IMDb data object
  * @param movieId The movie ID
- * @returns Array of character names
+ * @returns Array of WordEntry objects with character names
  */
-export function getMovieCharacters(data: IMDbData, movieId: string): string[] {
+export function getMovieCharacters(data: IMDbData, movieId: string): WordEntry[] {
 	const movie = data.movies[movieId];
-	return movie?.characters || [];
+	const characters = movie?.characters || [];
+	return characters
+		.map((name) => createWordEntry(name))
+		.filter((entry): entry is WordEntry => entry !== null);
 }
 
 /**
@@ -96,12 +144,16 @@ export function getMovieCharacters(data: IMDbData, movieId: string): string[] {
  *
  * @param data The IMDb data object
  * @param actorId The actor ID
- * @returns Array of movie titles
+ * @returns Array of WordEntry objects with movie titles
  */
-export function getActorFilmography(data: IMDbData, actorId: string): string[] {
+export function getActorFilmography(data: IMDbData, actorId: string): WordEntry[] {
 	const actor = data.actors[actorId];
 	if (!actor) return [];
-	return actor.movieIds.map((movieId) => data.movies[movieId]?.title).filter(Boolean);
+	return actor.movieIds
+		.map((movieId) => data.movies[movieId]?.title)
+		.filter(Boolean)
+		.map((title) => createWordEntry(title))
+		.filter((entry): entry is WordEntry => entry !== null);
 }
 
 /**
@@ -109,25 +161,43 @@ export function getActorFilmography(data: IMDbData, actorId: string): string[] {
  *
  * @param data The IMDb data object
  * @param count Number of movies to return
- * @returns Array of movie titles
+ * @returns Array of WordEntry objects with movie titles
  */
-export function getRandomMovies(data: IMDbData, count: number): string[] {
+export function getRandomMovies(data: IMDbData, count: number): WordEntry[] {
 	const movieIds = Object.keys(data.movies);
 	const shuffled = movieIds.sort(() => Math.random() - 0.5);
-	const selected = shuffled.slice(0, count);
-	return selected.map((id) => data.movies[id].title);
-}
 
-/**
+	// Keep trying until we have enough valid words
+	const result: WordEntry[] = [];
+	for (const id of shuffled) {
+		const entry = createWordEntry(data.movies[id].title);
+		if (entry) {
+			result.push(entry);
+			if (result.length >= count) break;
+		}
+	}
+
+	return result;
+} /**
  * Gets a random list of actor names
  *
  * @param data The IMDb data object
  * @param count Number of actors to return
- * @returns Array of actor names
+ * @returns Array of WordEntry objects with actor names
  */
-export function getRandomActors(data: IMDbData, count: number): string[] {
+export function getRandomActors(data: IMDbData, count: number): WordEntry[] {
 	const actorIds = Object.keys(data.actors);
 	const shuffled = actorIds.sort(() => Math.random() - 0.5);
-	const selected = shuffled.slice(0, count);
-	return selected.map((id) => data.actors[id].name);
+
+	// Keep trying until we have enough valid words
+	const result: WordEntry[] = [];
+	for (const id of shuffled) {
+		const entry = createWordEntry(data.actors[id].name);
+		if (entry) {
+			result.push(entry);
+			if (result.length >= count) break;
+		}
+	}
+
+	return result;
 }

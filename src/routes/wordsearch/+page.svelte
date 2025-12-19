@@ -11,7 +11,8 @@
 		Direction,
 		GridCell,
 		Highlight,
-		HIGHLIGHT_COLORS
+		HIGHLIGHT_COLORS,
+		WordEntry
 	} from '$lib/games/wordsearch/types.js';
 	import { WORD_LISTS } from '$lib/games/wordsearch/types.js';
 	import { getWordList } from '$lib/games/wordsearch/wordListService.js';
@@ -55,7 +56,7 @@
 
 	// Game state
 	let grid = $state<GridCell[][]>([]);
-	let words = $state<string[]>([]);
+	let words = $state<WordEntry[]>([]);
 	let sourceName = $state<string>('');
 	let sourceUrl = $state<string | undefined>(undefined);
 	let highlights = $state<Highlight[]>([]);
@@ -332,13 +333,13 @@
 		// Track how many words were found before giving up
 		wordsFoundBeforeGivingUp = highlights.length;
 
-		// Find all words that haven't been found yet
+		// Find all words that haven't been found yet (use gridValue for matching)
 		const foundWords = new Set(highlights.map((h) => h.word));
-		const remainingWords = words.filter((w) => !foundWords.has(w));
+		const remainingWords = words.filter((w) => !foundWords.has(w.gridValue));
 
 		// Find and highlight all remaining words
-		for (const word of remainingWords) {
-			const placement = findWordInGrid(word);
+		for (const wordEntry of remainingWords) {
+			const placement = findWordInGrid(wordEntry.gridValue);
 			if (placement) {
 				// Assign a color
 				const color = COLORS[highlights.length % COLORS.length];

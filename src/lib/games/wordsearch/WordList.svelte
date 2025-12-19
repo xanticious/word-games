@@ -1,14 +1,16 @@
 <script lang="ts">
+	import type { WordEntry } from './types.js';
+
 	interface Props {
-		words: string[];
-		foundWords: string[];
+		words: WordEntry[];
+		foundWords: string[]; // Array of gridValues that have been found
 	}
 
 	let { words, foundWords }: Props = $props();
 
-	// Check if a word has been found
-	function isFound(word: string): boolean {
-		return foundWords.includes(word);
+	// Check if a word has been found (compare against gridValue)
+	function isFound(word: WordEntry): boolean {
+		return foundWords.includes(word.gridValue);
 	}
 
 	// Determine if we should use two columns
@@ -20,7 +22,7 @@
 	<ul class="words" class:two-columns={useTwoColumns} style:--word-count={words.length}>
 		{#each words as word}
 			<li class="word-item" class:found={isFound(word)}>
-				{word}
+				{word.displayValue}
 			</li>
 		{/each}
 	</ul>

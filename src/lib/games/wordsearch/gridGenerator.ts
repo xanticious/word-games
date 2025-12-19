@@ -1322,17 +1322,26 @@ function generateSingleGrid(
  * Main entry point
  */
 export function generateGrid(
-	wordBank: string[],
+	wordBankEntries: import('./types.js').WordEntry[],
 	allowedDirections: Direction[],
 	gridSize: number,
 	density: 'sparse' | 'normal' | 'dense'
-): { grid: GridCell[][]; wordList: string[]; metrics: PerformanceMetrics } {
+): { grid: GridCell[][]; wordList: import('./types.js').WordEntry[]; metrics: PerformanceMetrics } {
 	const totalStart = performance.now();
 
 	// Phase 1: Preprocessing
 	const preprocessingStart = performance.now();
-	const filtered = filterWordBank(wordBank, gridSize);
+	// Extract gridValues for internal processing
+	const gridValues = wordBankEntries.map((entry) => entry.gridValue);
+	const filtered = filterWordBank(gridValues, gridSize);
 	const wordBankSet = new Set(filtered);
+
+	// Create a map from gridValue to WordEntry for later lookup
+	const gridValueToEntry = new Map<string, import('./types.js').WordEntry>();
+	for (const entry of wordBankEntries) {
+		gridValueToEntry.set(entry.gridValue, entry);
+	}
+
 	const preprocessingMs = performance.now() - preprocessingStart;
 
 	// Phase 1.5: Cycle Detection
@@ -1399,7 +1408,12 @@ export function generateGrid(
 
 	// Convert to external format
 	const externalGrid = bestGrid ? convertToExternalGrid(bestGrid) : createEmptyGrid(gridSize);
-	const wordList = bestPlacedWords.map((pw) => pw.word).sort();
+
+	// Map back from gridValues to WordEntry objects
+	const wordList = bestPlacedWords
+		.map((pw) => gridValueToEntry.get(pw.word))
+		.filter((entry): entry is import('./types.js').WordEntry => entry !== undefined)
+		.sort((a, b) => a.displayValue.localeCompare(b.displayValue));
 
 	const metrics: PerformanceMetrics = {
 		preprocessingMs,
@@ -1416,7 +1430,10 @@ export function generateGrid(
 
 	console.log('Grid generation metrics:', metrics);
 	console.log('Final score:', finalScore);
-	console.log('Words placed:', wordList);
+	console.log(
+		'Words placed:',
+		wordList.map((w) => w.displayValue)
+	);
 	if (bestCyclesPlaced > 0) {
 		console.log(`🔄 Cycles placed: ${bestCyclesPlaced} out of ${cycles.length} detected`);
 	}

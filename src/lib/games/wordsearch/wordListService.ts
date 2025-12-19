@@ -1,18 +1,42 @@
 /**
  * Service for retrieving word lists for the Word Search game
- * Handles fetching word lists from various sources (Wikipedia, etc.)
+ * Handles fetching word lists from various sources (Wikipedia, IMDb, etc.)
  */
 
-import type { WordListType } from './types.js';
+import type { WordListType, WordEntry } from './types.js';
 import { extractWords } from './textProcessor.js';
+import {
+	loadIMDbData,
+	getRandomMovies,
+	getRandomActors,
+	getRandomMovie,
+	getRandomActor,
+	getMovieCast,
+	getMovieCharacters,
+	getActorFilmography
+} from '$lib/imdb-loader.js';
+import type { IMDbData } from '$lib/types/imdb.js';
 
 export interface WordListResult {
-	words: string[];
+	words: WordEntry[];
 	sourceName: string;
 	sourceUrl?: string;
 }
 
 const MIN_WORDS_NEEDED = 8;
+
+// Cache IMDb data to avoid reloading
+let imdbDataCache: IMDbData | null = null;
+
+/**
+ * Gets IMDb data, loading and caching it on first request
+ */
+async function getIMDbData(): Promise<IMDbData> {
+	if (!imdbDataCache) {
+		imdbDataCache = await loadIMDbData();
+	}
+	return imdbDataCache;
+}
 
 /**
  * Fetches a random Wikipedia article and extracts words
@@ -77,10 +101,15 @@ export async function getWordList(
 				// Success! Return the words as a word bank (sorted alphabetically)
 				// Return more words than needed - the grid generator will select which ones fit
 				const sortedWords = article.words.slice(0, 150).sort();
+				// For Wikipedia, display and grid values are the same (already sanitized)
+				const wordEntries: WordEntry[] = sortedWords.map((word) => ({
+					displayValue: word,
+					gridValue: word
+				}));
 				// Create Wikipedia URL from title (encode and replace spaces with underscores)
 				const wikipediaUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, '_'))}`;
 				return {
-					words: sortedWords,
+					words: wordEntries,
 					sourceName: article.title,
 					sourceUrl: wikipediaUrl
 				};
@@ -95,94 +124,93 @@ export async function getWordList(
 		// Failed to get good article after max attempts, fall back to mock
 		console.warn('Failed to fetch Wikipedia article with enough words, using mock data');
 		return {
-			words: ['AAA', 'AAAAA'],
+			words: [
+				{ displayValue: 'AAA', gridValue: 'AAA' },
+				{ displayValue: 'AAAAA', gridValue: 'AAAAA' }
+			],
 			sourceName: 'Mock Data'
 		};
 	}
 
 	// Movies themes
 	if (wordListType === 'movies-random-list') {
-		// TODO: Implement random movie titles fetching
+		const data = await getIMDbData();
+		const movieTitles = getRandomMovies(data, 150);
 		return {
-			words: ['INCEPTION', 'AVATAR', 'TITANIC', 'GLADIATOR', 'MATRIX', 'INTERSTELLAR'],
-			sourceName: 'Random Movies (Mock)'
+			words: movieTitles,
+			sourceName: 'Random Movies'
 		};
 	}
 
 	if (wordListType === 'movies-actors-list') {
-		// TODO: Implement random actors fetching
+		const data = await getIMDbData();
+		const actorNames = getRandomActors(data, 150);
 		return {
-			words: ['DICAPRIO', 'HANKS', 'STREEP', 'DENIRO', 'CRUISE', 'DOWNEY'],
-			sourceName: 'Random Actors (Mock)'
-		};
-	}
-
-	if (wordListType === 'movies-random-blurb') {
-		// TODO: Implement random movie blurb fetching and word extraction
-		return {
-			words: ['DREAM', 'REALITY', 'SUBCONSCIOUS', 'HEIST', 'LAYER', 'ARCHITECT'],
-			sourceName: 'Inception (Mock)',
-			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
+			words: actorNames,
+			sourceName: 'Random Actors/Actresses'
 		};
 	}
 
 	if (wordListType === 'movies-random-cast') {
-		// TODO: Implement random movie cast fetching
+		const data = await getIMDbData();
+		const movie = getRandomMovie(data);
+		const cast = getMovieCast(data, movie.id);
+		const imdbUrl = `https://www.imdb.com/title/${movie.id}/`;
 		return {
-			words: ['DICAPRIO', 'COTILLARD', 'PAGE', 'HARDY', 'WATANABE', 'MURPHY'],
-			sourceName: 'Inception Cast (Mock)',
-			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
+			words: cast,
+			sourceName: `Cast from ${movie.title}`,
+			sourceUrl: imdbUrl
 		};
 	}
 
 	if (wordListType === 'movies-random-characters') {
-		// TODO: Implement random movie characters fetching
+		const data = await getIMDbData();
+		const movie = getRandomMovie(data);
+		const characters = getMovieCharacters(data, movie.id);
+		const imdbUrl = `https://www.imdb.com/title/${movie.id}/`;
 		return {
-			words: ['COBB', 'MAL', 'ARIADNE', 'EAMES', 'ARTHUR', 'SAITO'],
-			sourceName: 'Inception Characters (Mock)',
-			sourceUrl: 'https://www.imdb.com/title/tt1375666/'
-		};
-	}
-
-	if (wordListType === 'movies-actor-blurb') {
-		// TODO: Implement random actor biography word extraction
-		return {
-			words: ['ACTOR', 'HOLLYWOOD', 'OSCAR', 'PERFORMANCE', 'CAREER', 'DIRECTOR'],
-			sourceName: 'Leonardo DiCaprio Bio (Mock)',
-			sourceUrl: 'https://www.imdb.com/name/nm0000138/'
+			words: characters,
+			sourceName: `Characters from ${movie.title}`,
+			sourceUrl: imdbUrl
 		};
 	}
 
 	if (wordListType === 'movies-actor-filmography') {
-		// TODO: Implement random actor filmography fetching
+		const data = await getIMDbData();
+		const actor = getRandomActor(data);
+		const movies = getActorFilmography(data, actor.id);
+		const imdbUrl = `https://www.imdb.com/name/${actor.id}/`;
 		return {
-			words: ['INCEPTION', 'TITANIC', 'REVENANT', 'DJANGO', 'DEPARTED', 'GATSBY'],
-			sourceName: 'Leonardo DiCaprio Filmography (Mock)',
-			sourceUrl: 'https://www.imdb.com/name/nm0000138/'
+			words: movies,
+			sourceName: `Movies featuring ${actor.name}`,
+			sourceUrl: imdbUrl
 		};
 	}
 
 	// Books themes
 	if (wordListType === 'books-random-list') {
 		// TODO: Implement random book titles fetching
+		const mockWords = ['GATSBY', 'MOCKINGBIRD', 'CATCHER', 'PRIDE', 'PREJUDICE', 'ODYSSEY'];
 		return {
-			words: ['GATSBY', 'MOCKINGBIRD', 'CATCHER', 'PRIDE', 'PREJUDICE', 'ODYSSEY'],
+			words: mockWords.map((w) => ({ displayValue: w, gridValue: w })),
 			sourceName: 'Random Books (Mock)'
 		};
 	}
 
 	if (wordListType === 'books-authors-list') {
 		// TODO: Implement random authors fetching
+		const mockWords = ['FITZGERALD', 'AUSTEN', 'HEMINGWAY', 'SHAKESPEARE', 'ORWELL', 'TOLKIEN'];
 		return {
-			words: ['FITZGERALD', 'AUSTEN', 'HEMINGWAY', 'SHAKESPEARE', 'ORWELL', 'TOLKIEN'],
+			words: mockWords.map((w) => ({ displayValue: w, gridValue: w })),
 			sourceName: 'Random Authors (Mock)'
 		};
 	}
 
 	if (wordListType === 'books-goodreads-blurb') {
 		// TODO: Implement random GoodReads book blurb word extraction
+		const mockWords = ['GATSBY', 'JAZZ', 'AGE', 'WEALTH', 'LOVE', 'DREAM', 'AMERICA'];
 		return {
-			words: ['GATSBY', 'JAZZ', 'AGE', 'WEALTH', 'LOVE', 'DREAM', 'AMERICA'],
+			words: mockWords.map((w) => ({ displayValue: w, gridValue: w })),
 			sourceName: 'The Great Gatsby (Mock)',
 			sourceUrl: 'https://www.goodreads.com/book/show/4671.The_Great_Gatsby'
 		};
@@ -190,8 +218,9 @@ export async function getWordList(
 
 	if (wordListType === 'books-random-characters') {
 		// TODO: Implement random book characters fetching
+		const mockWords = ['GATSBY', 'DAISY', 'NICK', 'BUCHANAN', 'JORDAN', 'WILSON'];
 		return {
-			words: ['GATSBY', 'DAISY', 'NICK', 'BUCHANAN', 'JORDAN', 'WILSON'],
+			words: mockWords.map((w) => ({ displayValue: w, gridValue: w })),
 			sourceName: 'The Great Gatsby Characters (Mock)',
 			sourceUrl: 'https://www.goodreads.com/book/show/4671.The_Great_Gatsby'
 		};
@@ -199,8 +228,9 @@ export async function getWordList(
 
 	if (wordListType === 'books-author-works') {
 		// TODO: Implement random author works fetching
+		const mockWords = ['GATSBY', 'PARADISE', 'BEAUTIFUL', 'DAMNED', 'TENDER', 'NIGHT'];
 		return {
-			words: ['GATSBY', 'PARADISE', 'BEAUTIFUL', 'DAMNED', 'TENDER', 'NIGHT'],
+			words: mockWords.map((w) => ({ displayValue: w, gridValue: w })),
 			sourceName: 'F. Scott Fitzgerald Works (Mock)',
 			sourceUrl: 'https://www.goodreads.com/author/show/3190.F_Scott_Fitzgerald'
 		};
@@ -208,7 +238,10 @@ export async function getWordList(
 
 	// Fallback for unknown types
 	return {
-		words: ['AAA', 'AAAAA'],
+		words: [
+			{ displayValue: 'AAA', gridValue: 'AAA' },
+			{ displayValue: 'AAAAA', gridValue: 'AAAAA' }
+		],
 		sourceName: 'Unknown Type (Mock)'
 	};
 }

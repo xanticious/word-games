@@ -2,7 +2,7 @@
  * Selection logic for Word Search game
  */
 
-import type { GridCell, Direction } from './types.js';
+import type { GridCell, Direction, WordEntry } from './types.js';
 
 /**
  * Extracts the letters from selected cells to form a word
@@ -91,11 +91,12 @@ export function getDirection(
 
 /**
  * Checks if the selected cells form a valid word from the word list
+ * Returns the gridValue if found (for consistency with grid placement)
  */
 export function validateSelection(
 	selectedCells: { row: number; col: number }[],
 	grid: GridCell[][],
-	wordList: string[]
+	wordList: WordEntry[]
 ): string | null {
 	if (selectedCells.length === 0) {
 		return null;
@@ -104,15 +105,17 @@ export function validateSelection(
 	// Build the word from selected cells
 	const word = selectedCells.map((cell) => grid[cell.row][cell.col].letter).join('');
 
-	// Check forward
-	if (wordList.includes(word)) {
-		return word;
+	// Check forward - compare against gridValue
+	const matchingEntry = wordList.find((entry) => entry.gridValue === word);
+	if (matchingEntry) {
+		return matchingEntry.gridValue;
 	}
 
 	// Check backward
 	const reversedWord = word.split('').reverse().join('');
-	if (wordList.includes(reversedWord)) {
-		return reversedWord;
+	const matchingReversed = wordList.find((entry) => entry.gridValue === reversedWord);
+	if (matchingReversed) {
+		return matchingReversed.gridValue;
 	}
 
 	return null;
