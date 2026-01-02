@@ -273,6 +273,16 @@ export class GameDictionary {
 	}
 
 	/**
+	 * Get all phonetic entries (for rhyme game)
+	 */
+	getPhoneticEntries(): PhoneticEntry[] {
+		if (!this.phonetics) {
+			throw new Error('Dictionary not loaded');
+		}
+		return this.phonetics;
+	}
+
+	/**
 	 * Fetch definition from Wiktionary API
 	 */
 	private async fetchFromWiktionary(word: string): Promise<DefinitionEntry | null> {

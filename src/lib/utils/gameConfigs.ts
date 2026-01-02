@@ -51,13 +51,13 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
 	rhyme: {
 		id: 'rhyme',
 		name: 'Rhyme Thyme',
-		description: 'Type rhyming words against the clock',
+		description: 'Complete creative couplets from Wikipedia prompts',
 		icon: '🎵',
 		route: '/rhyme',
 		category: 'creative',
-		difficulty: ['easy', 'medium', 'hard'],
-		features: ['Rhyme Detection', 'Time Pressure', 'Rarity Scoring'],
-		estimatedPlayTime: 2
+		difficulty: [],
+		features: ['Wikipedia Prompts', 'Detailed Scoring', 'Time Multipliers', 'Bonus Words'],
+		estimatedPlayTime: 3
 	}
 };
 
