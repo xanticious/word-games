@@ -1,6 +1,13 @@
 /**
  * Phonetic analysis utilities for Rhyme Thyme
  * Parses CMU dictionary phonetic data into usable structures
+ *
+ * Stress Pattern Notation:
+ * - 'O' = primary stress (CMU marker 1)
+ * - 'o' = secondary stress (CMU marker 2)
+ * - '.' = unstressed (CMU marker 0)
+ *
+ * Example: "the cat" (DH AH0 + K AE1 T) -> stress pattern ".O"
  */
 
 import type { ParsedPhonetics, WordPhonetics } from './types.js';
@@ -31,23 +38,26 @@ function stripStress(sound: string): string {
 /**
  * Get stress level from vowel sound
  * 0 = unstressed, 1 = primary stress, 2 = secondary stress
- * Treat 1 and 2 as equivalent (both stressed)
  */
 function getStress(sound: string): number {
 	const match = sound.match(/([012])$/);
 	if (!match) return 0;
-	const stress = parseInt(match[1], 10);
-	// Normalize: 1 and 2 both become 1 (stressed), 0 stays 0 (unstressed)
-	return stress === 0 ? 0 : 1;
+	return parseInt(match[1], 10);
 }
 
 /**
  * Convert stress array to pattern string
- * 0 = 'o' (unstressed), 1/2 = 'O' (stressed)
- * E.g., [1, 0, 0, 1, 0] -> "O.o.o.O.o"
+ * 0 = '.' (unstressed), 1 = 'O' (primary stress), 2 = 'o' (secondary stress)
+ * E.g., [1, 0, 0, 1, 0] -> "O...O."
  */
 function stressArrayToPattern(stresses: number[]): string {
-	return stresses.map((s) => (s === 0 ? 'o' : 'O')).join('.');
+	return stresses
+		.map((s) => {
+			if (s === 1) return 'O'; // Primary stress
+			if (s === 2) return 'o'; // Secondary stress
+			return '.'; // Unstressed
+		})
+		.join('');
 }
 
 /**
@@ -350,6 +360,202 @@ export function compareVowels(
 		const count2 = counts2[vowel] || 0;
 		if (count2 > 0) {
 			matches.push({ vowel, count: Math.min(count1, count2) });
+		}
+	}
+
+	return matches;
+}
+
+/**
+ * Get consonant counts per word from a phrase
+ */
+export function getConsonantsPerWord(
+	phrase: string,
+	phoneticEntries: PhoneticEntry[]
+): Record<string, Record<string, number>> {
+	const words = phrase
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((w) => w.length > 0);
+
+	const result: Record<string, Record<string, number>> = {};
+
+	for (const word of words) {
+		const wordPhonetics = parseWordPhonetics(word, phoneticEntries);
+		if (wordPhonetics.pronunciations.length > 0) {
+			result[word] = wordPhonetics.pronunciations[0].consonants;
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Get vowel counts per word from a phrase
+ */
+export function getVowelsPerWord(
+	phrase: string,
+	phoneticEntries: PhoneticEntry[]
+): Record<string, string[]> {
+	const words = phrase
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((w) => w.length > 0);
+
+	const result: Record<string, string[]> = {};
+
+	for (const word of words) {
+		const wordPhonetics = parseWordPhonetics(word, phoneticEntries);
+		if (wordPhonetics.pronunciations.length > 0) {
+			result[word] = wordPhonetics.pronunciations[0].vowels;
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Compare consonants with detailed word-level tracking
+ */
+export function compareConsonantsDetailed(
+	phrase1: string,
+	phrase2: string,
+	phoneticEntries: PhoneticEntry[]
+): Array<{
+	consonant: string;
+	count: number;
+	details: Array<{ word: string; occurrences: number }>;
+}> {
+	const consonants1 = getConsonantsPerWord(phrase1, phoneticEntries);
+	const consonants2 = getConsonantsPerWord(phrase2, phoneticEntries);
+
+	// Aggregate all consonants across both phrases
+	const allConsonants = new Set<string>();
+	for (const wordConsonants of Object.values(consonants1)) {
+		for (const consonant of Object.keys(wordConsonants)) {
+			allConsonants.add(consonant);
+		}
+	}
+	for (const wordConsonants of Object.values(consonants2)) {
+		for (const consonant of Object.keys(wordConsonants)) {
+			allConsonants.add(consonant);
+		}
+	}
+
+	const matches: Array<{
+		consonant: string;
+		count: number;
+		details: Array<{ word: string; occurrences: number }>;
+	}> = [];
+
+	for (const consonant of allConsonants) {
+		// Count total occurrences in each phrase
+		let count1 = 0;
+		let count2 = 0;
+		const details: Array<{ word: string; occurrences: number }> = [];
+
+		for (const [word, consonants] of Object.entries(consonants1)) {
+			const wordCount = consonants[consonant] || 0;
+			if (wordCount > 0) {
+				count1 += wordCount;
+				details.push({ word, occurrences: wordCount });
+			}
+		}
+
+		for (const [word, consonants] of Object.entries(consonants2)) {
+			const wordCount = consonants[consonant] || 0;
+			if (wordCount > 0) {
+				count2 += wordCount;
+				details.push({ word, occurrences: wordCount });
+			}
+		}
+
+		// Only include matches (consonant appears in both phrases)
+		if (count1 > 0 && count2 > 0) {
+			matches.push({
+				consonant,
+				count: Math.min(count1, count2),
+				details
+			});
+		}
+	}
+
+	return matches;
+}
+
+/**
+ * Compare vowels with detailed word-level tracking
+ */
+export function compareVowelsDetailed(
+	phrase1: string,
+	phrase2: string,
+	phoneticEntries: PhoneticEntry[]
+): Array<{
+	vowel: string;
+	count: number;
+	details: Array<{ word: string; occurrences: number }>;
+}> {
+	const vowels1 = getVowelsPerWord(phrase1, phoneticEntries);
+	const vowels2 = getVowelsPerWord(phrase2, phoneticEntries);
+
+	// Aggregate all vowels across both phrases
+	const allVowelCounts1: Record<string, number> = {};
+	const allVowelCounts2: Record<string, number> = {};
+	const vowelWordMap: Record<string, Array<{ word: string; occurrences: number }>> = {};
+
+	// Count vowels from phrase 1
+	for (const [word, vowels] of Object.entries(vowels1)) {
+		for (const vowel of vowels) {
+			allVowelCounts1[vowel] = (allVowelCounts1[vowel] || 0) + 1;
+
+			if (!vowelWordMap[vowel]) {
+				vowelWordMap[vowel] = [];
+			}
+
+			const existing = vowelWordMap[vowel].find((item) => item.word === word);
+			if (existing) {
+				existing.occurrences++;
+			} else {
+				vowelWordMap[vowel].push({ word, occurrences: 1 });
+			}
+		}
+	}
+
+	// Count vowels from phrase 2
+	for (const [word, vowels] of Object.entries(vowels2)) {
+		for (const vowel of vowels) {
+			allVowelCounts2[vowel] = (allVowelCounts2[vowel] || 0) + 1;
+
+			if (!vowelWordMap[vowel]) {
+				vowelWordMap[vowel] = [];
+			}
+
+			const existing = vowelWordMap[vowel].find((item) => item.word === word);
+			if (existing) {
+				existing.occurrences++;
+			} else {
+				vowelWordMap[vowel].push({ word, occurrences: 1 });
+			}
+		}
+	}
+
+	const matches: Array<{
+		vowel: string;
+		count: number;
+		details: Array<{ word: string; occurrences: number }>;
+	}> = [];
+
+	for (const vowel of Object.keys(vowelWordMap)) {
+		const count1 = allVowelCounts1[vowel] || 0;
+		const count2 = allVowelCounts2[vowel] || 0;
+
+		// Only include matches (vowel appears in both phrases)
+		if (count1 > 0 && count2 > 0) {
+			matches.push({
+				vowel,
+				count: Math.min(count1, count2),
+				details: vowelWordMap[vowel]
+			});
 		}
 	}
 

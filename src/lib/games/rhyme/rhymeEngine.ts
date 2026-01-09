@@ -57,13 +57,11 @@ function levenshteinDistance(arr1: string[], arr2: string[]): number {
 
 /**
  * Calculate Levenshtein distance between two stress patterns
+ * Each character in the pattern represents one syllable
  */
 function stressPatternDistance(pattern1: string, pattern2: string): number {
-	const arr1 = pattern1.split('.').filter((s) => s.length > 0);
-	const arr2 = pattern2.split('.').filter((s) => s.length > 0);
-
-	const len1 = arr1.length;
-	const len2 = arr2.length;
+	const len1 = pattern1.length;
+	const len2 = pattern2.length;
 
 	const dp: number[][] = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
 
@@ -76,7 +74,7 @@ function stressPatternDistance(pattern1: string, pattern2: string): number {
 
 	for (let i = 1; i <= len1; i++) {
 		for (let j = 1; j <= len2; j++) {
-			const cost = arr1[i - 1] === arr2[j - 1] ? 0 : 1;
+			const cost = pattern1[i - 1] === pattern2[j - 1] ? 0 : 1;
 
 			dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
 		}
@@ -333,27 +331,51 @@ export function detectInternalRhymes(
 			// Analyze rhyme between these words
 			const analysis = analyzeRhymeWithBestPronunciation(word1, word2, phoneticEntries);
 
-			// Only count as internal rhyme if distance <= 2 (relatively close rhyme)
-			if (analysis.isRhyme && analysis.distance <= 2) {
-				// Find or create a group for these words
-				let groupKey: string | null = null;
+			// Calculate acceptable distance threshold based on shorter word's phoneme count
+			// Get phonetics to determine ending length
+			const phonetics1 = getPhrasePhonetics(word1, phoneticEntries);
+			const phonetics2 = getPhrasePhonetics(word2, phoneticEntries);
 
-				// Check if either word is already in a group
-				for (const [key, words] of rhymeGroups.entries()) {
-					if (words.includes(word1) || words.includes(word2)) {
-						groupKey = key;
-						break;
-					}
+			if (phonetics1 && phonetics2) {
+				const ending1 = getEndingFromLastStress(phonetics1.sounds);
+				const ending2 = getEndingFromLastStress(phonetics2.sounds);
+				const shorterLength = Math.min(ending1.length, ending2.length);
+
+				// Threshold based on phoneme count:
+				// 1 phoneme: distance must be 0 (exact match)
+				// 2-3 phonemes: distance can be 1
+				// 4+ phonemes: distance can be 2
+				let maxDistance: number;
+				if (shorterLength === 1) {
+					maxDistance = 0;
+				} else if (shorterLength <= 3) {
+					maxDistance = 1;
+				} else {
+					maxDistance = 2;
 				}
 
-				if (groupKey) {
-					// Add to existing group
-					const group = rhymeGroups.get(groupKey)!;
-					if (!group.includes(word1)) group.push(word1);
-					if (!group.includes(word2)) group.push(word2);
-				} else {
-					// Create new group
-					rhymeGroups.set(`${word1}-${word2}`, [word1, word2]);
+				// Only count as internal rhyme if distance meets the threshold
+				if (analysis.isRhyme && analysis.distance <= maxDistance) {
+					// Find or create a group for these words
+					let groupKey: string | null = null;
+
+					// Check if either word is already in a group
+					for (const [key, words] of rhymeGroups.entries()) {
+						if (words.includes(word1) || words.includes(word2)) {
+							groupKey = key;
+							break;
+						}
+					}
+
+					if (groupKey) {
+						// Add to existing group
+						const group = rhymeGroups.get(groupKey)!;
+						if (!group.includes(word1)) group.push(word1);
+						if (!group.includes(word2)) group.push(word2);
+					} else {
+						// Create new group
+						rhymeGroups.set(`${word1}-${word2}`, [word1, word2]);
+					}
 				}
 			}
 		}
@@ -383,9 +405,9 @@ export function calculateStressPatternScore(
 ): { points: number; distance: number; description: string } {
 	const distance = stressPatternDistance(pattern1, pattern2);
 
-	// Calculate max possible distance
-	const len1 = pattern1.split('.').filter((s) => s.length > 0).length;
-	const len2 = pattern2.split('.').filter((s) => s.length > 0).length;
+	// Calculate max possible distance (each character is one syllable)
+	const len1 = pattern1.length;
+	const len2 = pattern2.length;
 	const maxDistance = Math.max(len1, len2);
 
 	// Normalize to 0-1 similarity

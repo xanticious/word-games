@@ -73,53 +73,53 @@ describe('Stress Pattern Detection', () => {
 			const result = parsePronunciation(['K', 'AE1', 'T'], 'K AE1 T');
 
 			expect(result.vowels).toEqual(['AE']);
-			expect(result.stressPattern).toBe('O'); // 1 = stressed = 'O'
+			expect(result.stressPattern).toBe('O'); // 1 = primary stress = 'O'
 		});
 
 		it('should handle multiple syllables with different stress levels', () => {
-			// "running" = R AH1 N IH0 NG -> "O.o" (stressed, unstressed)
+			// "running" = R AH1 N IH0 NG -> "O." (primary, unstressed)
 			const result = parsePronunciation(['R', 'AH1', 'N', 'IH0', 'NG'], 'R AH1 N IH0 NG');
 
 			expect(result.vowels).toEqual(['AH', 'IH']);
-			expect(result.stressPattern).toBe('O.o'); // 1=O, 0=o
+			expect(result.stressPattern).toBe('O.'); // 1=O, 0=.
 		});
 
-		it('should treat primary stress (1) and secondary stress (2) as equivalent', () => {
-			// "borrow" = B AA1 R OW2 -> should be "O.O" (both stressed)
+		it('should treat primary stress (1) and secondary stress (2) as different', () => {
+			// "borrow" = B AA1 R OW2 -> should be "Oo" (primary, secondary)
 			const result = parsePronunciation(['B', 'AA1', 'R', 'OW2'], 'B AA1 R OW2');
 
 			expect(result.vowels).toEqual(['AA', 'OW']);
-			expect(result.stressPattern).toBe('O.O'); // Both 1 and 2 should be 'O'
+			expect(result.stressPattern).toBe('Oo'); // 1=O, 2=o
 		});
 
 		it('should handle unstressed syllables', () => {
-			// "the" = DH AH0 -> "o" (unstressed)
+			// "the" = DH AH0 -> "." (unstressed)
 			const result = parsePronunciation(['DH', 'AH0'], 'DH AH0');
 
 			expect(result.vowels).toEqual(['AH']);
-			expect(result.stressPattern).toBe('o');
+			expect(result.stressPattern).toBe('.');
 		});
 
 		it('should handle complex multi-syllable words', () => {
-			// "beautiful" = B Y UW1 T AH0 F AH0 L -> "O.o.o"
+			// "beautiful" = B Y UW1 T AH0 F AH0 L -> "O.."
 			const result = parsePronunciation(
 				['B', 'Y', 'UW1', 'T', 'AH0', 'F', 'AH0', 'L'],
 				'B Y UW1 T AH0 F AH0 L'
 			);
 
 			expect(result.vowels).toEqual(['UW', 'AH', 'AH']);
-			expect(result.stressPattern).toBe('O.o.o');
+			expect(result.stressPattern).toBe('O..');
 		});
 
 		it('should handle words with unstressed then stressed pattern', () => {
-			// "computer" = K AH0 M P Y UW1 T ER0 -> "o.O.o"
+			// "computer" = K AH0 M P Y UW1 T ER0 -> ".O."
 			const result = parsePronunciation(
 				['K', 'AH0', 'M', 'P', 'Y', 'UW1', 'T', 'ER0'],
 				'K AH0 M P Y UW1 T ER0'
 			);
 
 			expect(result.vowels).toEqual(['AH', 'UW', 'ER']);
-			expect(result.stressPattern).toBe('o.O.o');
+			expect(result.stressPattern).toBe('.O.');
 		});
 
 		it('should correctly count consonants', () => {
@@ -134,29 +134,29 @@ describe('Stress Pattern Detection', () => {
 
 	describe('getPhrasePhonetics', () => {
 		it('should combine stress patterns from multiple words', () => {
-			// "the cat" = DH AH0 + K AE1 T -> "o.O"
+			// "the cat" = DH AH0 + K AE1 T -> ".O"
 			const result = getPhrasePhonetics('the cat', mockPhoneticEntries);
 
 			expect(result).not.toBeNull();
 			expect(result?.vowels).toEqual(['AH', 'AE']);
-			expect(result?.stressPattern).toBe('o.O');
+			expect(result?.stressPattern).toBe('.O');
 		});
 
 		it('should handle phrases with multiple stressed syllables', () => {
-			// "cat house" = K AE1 T + HH AW1 S -> "O.O"
+			// "cat house" = K AE1 T + HH AW1 S -> "OO"
 			const result = getPhrasePhonetics('cat house', mockPhoneticEntries);
 
 			expect(result).not.toBeNull();
-			expect(result?.stressPattern).toBe('O.O');
+			expect(result?.stressPattern).toBe('OO');
 		});
 
 		it('should handle complex multi-word phrases', () => {
 			// "the beautiful house" = DH AH0 + B Y UW1 T AH0 F AH0 L + HH AW1 S
-			// -> "o.O.o.o.O"
+			// -> ".O..O"
 			const result = getPhrasePhonetics('the beautiful house', mockPhoneticEntries);
 
 			expect(result).not.toBeNull();
-			expect(result?.stressPattern).toBe('o.O.o.o.O');
+			expect(result?.stressPattern).toBe('.O..O');
 		});
 
 		it('should return null if word not in dictionary', () => {
@@ -168,7 +168,7 @@ describe('Stress Pattern Detection', () => {
 
 	describe('calculateStressPatternScore', () => {
 		it('should award maximum points for identical patterns', () => {
-			const result = calculateStressPatternScore('O.O', 'O.O');
+			const result = calculateStressPatternScore('OO', 'OO');
 
 			expect(result.points).toBe(20); // max points
 			expect(result.distance).toBe(0);
@@ -176,16 +176,16 @@ describe('Stress Pattern Detection', () => {
 		});
 
 		it('should penalize different patterns appropriately', () => {
-			// "O.o" vs "o.O" - completely different stress placement
-			const result = calculateStressPatternScore('O.o', 'o.O');
+			// "O." vs ".O" - completely different stress placement
+			const result = calculateStressPatternScore('O.', '.O');
 
 			expect(result.distance).toBeGreaterThan(0);
 			expect(result.points).toBeLessThan(20);
 		});
 
 		it('should handle patterns of different lengths', () => {
-			// "O" vs "O.o" - different syllable counts
-			const result = calculateStressPatternScore('O', 'O.o');
+			// "O" vs "O." - different syllable counts
+			const result = calculateStressPatternScore('O', 'O.');
 
 			expect(result.distance).toBeGreaterThan(0);
 			expect(result.points).toBeGreaterThan(5); // Should still get some points
@@ -193,8 +193,8 @@ describe('Stress Pattern Detection', () => {
 		});
 
 		it('should give partial credit for partially matching patterns', () => {
-			// "O.o.O" vs "O.o.o" - two out of three match
-			const result = calculateStressPatternScore('O.o.O', 'O.o.o');
+			// "O.O" vs "O.." - two out of three match
+			const result = calculateStressPatternScore('O.O', 'O..');
 
 			expect(result.distance).toBe(1); // Only one difference
 			// Distance of 1 on 3 syllables = similarity of 2/3 = 0.667
@@ -204,19 +204,19 @@ describe('Stress Pattern Detection', () => {
 		});
 
 		it('should handle baroque vs borrow (different stress)', () => {
-			// baroque: B ER0 OW1 K -> "o.O"
-			// borrow: B AA1 R OW2 -> "O.O"
+			// baroque: B ER0 OW1 K -> ".O"
+			// borrow: B AA1 R OW2 -> "Oo"
 			const baroque = getPhrasePhonetics('baroque', mockPhoneticEntries);
 			const borrow = getPhrasePhonetics('borrow', mockPhoneticEntries);
 
-			expect(baroque?.stressPattern).toBe('o.O');
-			expect(borrow?.stressPattern).toBe('O.O');
+			expect(baroque?.stressPattern).toBe('.O');
+			expect(borrow?.stressPattern).toBe('Oo');
 
 			const result = calculateStressPatternScore(baroque!.stressPattern, borrow!.stressPattern);
 
-			expect(result.distance).toBe(1);
+			expect(result.distance).toBe(2); // Both syllables differ
 			expect(result.points).toBeLessThan(20);
-			expect(result.points).toBeGreaterThan(10);
+			expect(result.points).toBeGreaterThan(0);
 		});
 
 		it('should normalize similarity correctly', () => {
@@ -227,40 +227,40 @@ describe('Stress Pattern Detection', () => {
 		});
 
 		it('should assign correct descriptions', () => {
-			const excellent = calculateStressPatternScore('O.o.O', 'O.o.O');
+			const excellent = calculateStressPatternScore('O.O', 'O.O');
 			expect(excellent.description).toBe('Excellent match');
 
-			const good = calculateStressPatternScore('O.o.O', 'O.o.o');
+			const good = calculateStressPatternScore('O.O', 'O..');
 			expect(good.description).toMatch(/Good match|Fair match/);
 
-			const poor = calculateStressPatternScore('O.O.O', 'o.o.o');
+			const poor = calculateStressPatternScore('OOO', '...');
 			expect(poor.description).toMatch(/Weak match|Poor match/);
 		});
 	});
 
 	describe('Real-world examples', () => {
 		it('should correctly analyze "the cat is running"', () => {
-			// "the cat is running" = o.O.O.O.o
+			// "the cat is running" = .OOO.
 			const result = getPhrasePhonetics('the cat is running', mockPhoneticEntries);
 
 			expect(result).not.toBeNull();
-			expect(result?.stressPattern).toBe('o.O.O.O.o');
+			expect(result?.stressPattern).toBe('.OOO.');
 		});
 
 		it('should correctly analyze "a beautiful village"', () => {
-			// "a beautiful village" = o.O.o.o.O.o
+			// "a beautiful village" = .O..O.
 			const result = getPhrasePhonetics('a beautiful village', mockPhoneticEntries);
 
 			expect(result).not.toBeNull();
-			expect(result?.stressPattern).toBe('o.O.o.o.O.o');
+			expect(result?.stressPattern).toBe('.O..O.');
 		});
 
 		it('should handle stress comparison for similar phrases', () => {
 			const phrase1 = getPhrasePhonetics('the cat', mockPhoneticEntries);
 			const phrase2 = getPhrasePhonetics('a house', mockPhoneticEntries);
 
-			expect(phrase1?.stressPattern).toBe('o.O');
-			expect(phrase2?.stressPattern).toBe('o.O');
+			expect(phrase1?.stressPattern).toBe('.O');
+			expect(phrase2?.stressPattern).toBe('.O');
 
 			const score = calculateStressPatternScore(phrase1!.stressPattern, phrase2!.stressPattern);
 
@@ -279,7 +279,7 @@ describe('Stress Pattern Detection', () => {
 		it('should handle all unstressed syllables', () => {
 			const result = parsePronunciation(['DH', 'AH0'], 'DH AH0');
 
-			expect(result.stressPattern).toBe('o');
+			expect(result.stressPattern).toBe('.');
 		});
 
 		it('should correctly identify vowels vs consonants', () => {

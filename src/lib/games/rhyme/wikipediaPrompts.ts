@@ -6,6 +6,7 @@
 import type { GamePrompt } from './types.js';
 import type { GameDictionary } from '$lib/dictionary.js';
 import { WIKIPEDIA } from './config.js';
+import { getPhrasePhonetics, countSyllables } from './phoneticAnalyzer.js';
 
 /**
  * Fetch a random Wikipedia article
@@ -105,7 +106,7 @@ function extractPromptCandidates(text: string): string[] {
 
 /**
  * Validate a prompt candidate
- * Returns true if valid (last word not filler, all words in dictionary)
+ * Returns true if valid (last word not filler, all words in dictionary, syllable constraints)
  */
 function isValidPrompt(prompt: string, dictionary: GameDictionary): boolean {
 	const words = prompt.toLowerCase().split(/\s+/);
@@ -123,6 +124,16 @@ function isValidPrompt(prompt: string, dictionary: GameDictionary): boolean {
 		if (!dictionary.isValidWord(word)) {
 			return false;
 		}
+	}
+
+	// Check syllable count
+	const phoneticEntries = dictionary.getPhoneticEntries();
+	const phonetics = getPhrasePhonetics(prompt, phoneticEntries);
+	if (!phonetics) return false;
+
+	const syllables = countSyllables(phonetics);
+	if (syllables < WIKIPEDIA.promptMinSyllables || syllables > WIKIPEDIA.promptMaxSyllables) {
+		return false;
 	}
 
 	return true;

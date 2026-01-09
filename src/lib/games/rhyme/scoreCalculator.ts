@@ -9,7 +9,9 @@ import {
 	getPhrasePhonetics,
 	countSyllables,
 	compareConsonants,
-	compareVowels
+	compareVowels,
+	compareConsonantsDetailed,
+	compareVowelsDetailed
 } from './phoneticAnalyzer.js';
 import {
 	analyzeRhymeWithBestPronunciation,
@@ -116,10 +118,7 @@ export function calculateCompletionScore(
 
 	// 5. Alliteration (consonant matches)
 	if (promptPhonetics && completionPhonetics) {
-		const consonantMatches = compareConsonants(
-			promptPhonetics.consonants,
-			completionPhonetics.consonants
-		);
+		const consonantMatches = compareConsonantsDetailed(promptLine, completionLine, phoneticEntries);
 
 		score.alliteration.matches = consonantMatches;
 		score.alliteration.points = consonantMatches.reduce((sum, match) => {
@@ -129,7 +128,7 @@ export function calculateCompletionScore(
 
 	// 6. Consonance (vowel matches)
 	if (promptPhonetics && completionPhonetics) {
-		const vowelMatches = compareVowels(promptPhonetics.vowels, completionPhonetics.vowels);
+		const vowelMatches = compareVowelsDetailed(promptLine, completionLine, phoneticEntries);
 
 		score.consonance.matches = vowelMatches;
 		score.consonance.points = vowelMatches.reduce((sum, match) => {

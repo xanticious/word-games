@@ -122,14 +122,19 @@
 			.split(/\s+/)
 			.filter((w) => w.length > 0);
 
+		const unknownWords: string[] = [];
 		for (const word of words) {
 			if (!dictionary.isValidWord(word)) {
-				return {
-					valid: false,
-					error: `Sorry, "${word}" is invalid, only well-known English words are allowed`,
-					invalidWord: word
-				};
+				unknownWords.push(word);
 			}
+		}
+
+		if (unknownWords.length > 0) {
+			return {
+				valid: false,
+				error: `These words are unknown: ${unknownWords.map((w) => `"${w}"`).join(', ')}. Would you like to edit before re-submitting?`,
+				unknownWords
+			};
 		}
 
 		return { valid: true };
@@ -141,8 +146,20 @@
 		// Validate
 		const validation = validateCompletion(line);
 		if (!validation.valid) {
-			alert(validation.error);
-			return;
+			// For unknown words, give option to edit
+			if (validation.unknownWords && validation.unknownWords.length > 0) {
+				const shouldEdit = confirm(validation.error);
+				if (shouldEdit) {
+					// User wants to edit - don't clear input, just return
+					return;
+				}
+				// User chose not to edit - return without submitting
+				return;
+			} else {
+				// Other validation errors
+				alert(validation.error);
+				return;
+			}
 		}
 
 		// Calculate score

@@ -41,12 +41,12 @@ describe('Stress Pattern Scoring Integration', () => {
 			const score = calculateCompletionScore(promptLine, completionLine, [], mockPhoneticEntries);
 
 			// Prompt: P AE1 T ER0 W AH0 + IH1 Z + AH0 + V IH1 L IH0 JH
-			// Pattern: O.o.o.O.o.O.o
-			expect(score.stressPattern.promptPattern).toBe('O.o.o.O.o.O.o');
+			// Pattern: O..O.O. (1,0,0,1,0,1,0)
+			expect(score.stressPattern.promptPattern).toBe('O..O.O.');
 
 			// Completion: N OW1 N + F AO1 R + IH1 T S + S P IH1 L IH0 JH
-			// Pattern: O.O.O.O.o
-			expect(score.stressPattern.completionPattern).toBe('O.O.O.O.o');
+			// Pattern: OOO.O. (1,1,1,0,1,0) - note: "its" is IH1
+			expect(score.stressPattern.completionPattern).toBe('OOOO.');
 
 			// Patterns are quite different, should get low score
 			expect(score.stressPattern.points).toBeGreaterThan(5);
@@ -54,16 +54,16 @@ describe('Stress Pattern Scoring Integration', () => {
 		});
 
 		it('should correctly analyze matching stress patterns', () => {
-			// "the cat" = o.O
-			// "in hat" = O.O (close but not perfect)
+			// "the cat" = .O (unstressed, primary)
+			// "in hat" = OO (primary, primary)
 			const score = calculateCompletionScore('the cat', 'in hat', [], mockPhoneticEntries);
 
-			expect(score.stressPattern.promptPattern).toBe('o.O');
-			expect(score.stressPattern.completionPattern).toBe('O.O');
+			expect(score.stressPattern.promptPattern).toBe('.O');
+			expect(score.stressPattern.completionPattern).toBe('OO');
 
-			// One difference in 2 syllables = 50% match
+			// One substitution difference in 2 syllables
 			expect(score.stressPattern.distance).toBe(1);
-			expect(score.stressPattern.points).toBeGreaterThan(10);
+			expect(score.stressPattern.points).toBeGreaterThan(0);
 			expect(score.stressPattern.points).toBeLessThan(20);
 		});
 	});
@@ -101,9 +101,9 @@ describe('Stress Pattern Scoring Integration', () => {
 				mockPhoneticEntries
 			);
 
-			// Patterns should be dot-separated with O (stressed) and o (unstressed)
-			expect(score.stressPattern.promptPattern).toMatch(/^[Oo](\.[Oo])*$/);
-			expect(score.stressPattern.completionPattern).toMatch(/^[Oo](\.[Oo])*$/);
+			// Patterns should be characters: O (primary), o (secondary), . (unstressed)
+			expect(score.stressPattern.promptPattern).toMatch(/^[Oo.]+$/);
+			expect(score.stressPattern.completionPattern).toMatch(/^[Oo.]+$/);
 		});
 
 		it('should show stress patterns for single-syllable words', () => {

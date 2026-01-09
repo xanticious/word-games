@@ -183,25 +183,59 @@
 
 								<!-- Alliteration -->
 								{#if completion.score.alliteration.matches.length > 0}
-									<div class="flex justify-between">
-										<span>
-											Alliteration: {completion.score.alliteration.matches
-												.map((m) => `${m.count}× "${m.consonant}"`)
-												.join(', ')}
-										</span>
-										<span class="font-semibold">+{completion.score.alliteration.points}</span>
+									<div class="flex flex-col gap-1">
+										<div class="flex justify-between">
+											<span class="font-semibold">Alliteration</span>
+											<span class="font-semibold">+{completion.score.alliteration.points}</span>
+										</div>
+										{#each completion.score.alliteration.matches as match}
+											{@const totalOccurrences = match.details.reduce(
+												(sum, d) => sum + d.occurrences,
+												0
+											)}
+											<div class="pl-4 text-sm">
+												<div class="flex justify-between">
+													<span
+														>{totalOccurrences} occurrence{totalOccurrences !== 1 ? 's' : ''} of "{match.consonant}"</span
+													>
+													<span>+{match.count * 1}</span>
+												</div>
+												<div class="pl-4 text-xs opacity-75">
+													{#each match.details as detail}
+														<div>{detail.word} ({detail.occurrences})</div>
+													{/each}
+												</div>
+											</div>
+										{/each}
 									</div>
 								{/if}
 
 								<!-- Consonance -->
 								{#if completion.score.consonance.matches.length > 0}
-									<div class="flex justify-between">
-										<span>
-											Consonance: {completion.score.consonance.matches
-												.map((m) => `${m.count}× "${m.vowel}"`)
-												.join(', ')}
-										</span>
-										<span class="font-semibold">+{completion.score.consonance.points}</span>
+									<div class="flex flex-col gap-1">
+										<div class="flex justify-between">
+											<span class="font-semibold">Consonance</span>
+											<span class="font-semibold">+{completion.score.consonance.points}</span>
+										</div>
+										{#each completion.score.consonance.matches as match}
+											{@const totalOccurrences = match.details.reduce(
+												(sum, d) => sum + d.occurrences,
+												0
+											)}
+											<div class="pl-4 text-sm">
+												<div class="flex justify-between">
+													<span
+														>{totalOccurrences} occurrence{totalOccurrences !== 1 ? 's' : ''} of "{match.vowel}"</span
+													>
+													<span>+{match.count * 1}</span>
+												</div>
+												<div class="pl-4 text-xs opacity-75">
+													{#each match.details as detail}
+														<div>{detail.word} ({detail.occurrences})</div>
+													{/each}
+												</div>
+											</div>
+										{/each}
 									</div>
 								{/if}
 
@@ -305,24 +339,58 @@
 								</div>
 
 								{#if completion.score.alliteration.matches.length > 0}
-									<div class="flex justify-between">
-										<span>
-											Alliteration: {completion.score.alliteration.matches
-												.map((m) => `${m.count}× "${m.consonant}"`)
-												.join(', ')}
-										</span>
-										<span class="font-semibold">+{completion.score.alliteration.points}</span>
+									<div class="flex flex-col gap-1">
+										<div class="flex justify-between">
+											<span class="font-semibold">Alliteration</span>
+											<span class="font-semibold">+{completion.score.alliteration.points}</span>
+										</div>
+										{#each completion.score.alliteration.matches as match}
+											{@const totalOccurrences = match.details.reduce(
+												(sum, d) => sum + d.occurrences,
+												0
+											)}
+											<div class="pl-4 text-sm">
+												<div class="flex justify-between">
+													<span
+														>{totalOccurrences} occurrence{totalOccurrences !== 1 ? 's' : ''} of "{match.consonant}"</span
+													>
+													<span>+{match.count * 1}</span>
+												</div>
+												<div class="pl-4 text-xs opacity-75">
+													{#each match.details as detail}
+														<div>{detail.word} ({detail.occurrences})</div>
+													{/each}
+												</div>
+											</div>
+										{/each}
 									</div>
 								{/if}
 
 								{#if completion.score.consonance.matches.length > 0}
-									<div class="flex justify-between">
-										<span>
-											Consonance: {completion.score.consonance.matches
-												.map((m) => `${m.count}× "${m.vowel}"`)
-												.join(', ')}
-										</span>
-										<span class="font-semibold">+{completion.score.consonance.points}</span>
+									<div class="flex flex-col gap-1">
+										<div class="flex justify-between">
+											<span class="font-semibold">Consonance</span>
+											<span class="font-semibold">+{completion.score.consonance.points}</span>
+										</div>
+										{#each completion.score.consonance.matches as match}
+											{@const totalOccurrences = match.details.reduce(
+												(sum, d) => sum + d.occurrences,
+												0
+											)}
+											<div class="pl-4 text-sm">
+												<div class="flex justify-between">
+													<span
+														>{totalOccurrences} occurrence{totalOccurrences !== 1 ? 's' : ''} of "{match.vowel}"</span
+													>
+													<span>+{match.count * 1}</span>
+												</div>
+												<div class="pl-4 text-xs opacity-75">
+													{#each match.details as detail}
+														<div>{detail.word} ({detail.occurrences})</div>
+													{/each}
+												</div>
+											</div>
+										{/each}
 									</div>
 								{/if}
 

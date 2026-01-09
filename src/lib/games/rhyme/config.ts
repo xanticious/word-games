@@ -37,7 +37,7 @@ export const SCORING: ScoringConfig = {
 	},
 	wordBank: {
 		perUse: 5,
-		varietyBonus: [10, 25, 50, 100, 200] // Points for using 1, 2, 3, 4, 5 different words
+		varietyBonus: [10, 25, 50, 100] // Points for using 1, 2, 3, 4, 5 different words
 	}
 };
 
@@ -45,14 +45,14 @@ export const SCORING: ScoringConfig = {
  * Time configuration
  */
 export const TIMING: TimingConfig = {
-	roundDuration: 120, // 2 minutes in seconds
+	roundDuration: 240, // 4 minutes in seconds
 	maxCompletions: 10,
 	multipliers: [
-		{ threshold: 60, multiplier: 5 }, // ≤ 1 minute
-		{ threshold: 75, multiplier: 4 }, // ≤ 1.25 minutes
-		{ threshold: 90, multiplier: 3 }, // ≤ 1.5 minutes
-		{ threshold: 105, multiplier: 2 }, // ≤ 1.75 minutes
-		{ threshold: 120, multiplier: 1 } // ≤ 2 minutes
+		{ threshold: 120, multiplier: 5 }, // ≤ 2 minutes
+		{ threshold: 150, multiplier: 4 }, // ≤ 2.5 minutes
+		{ threshold: 180, multiplier: 3 }, // ≤ 3 minutes
+		{ threshold: 210, multiplier: 2 }, // ≤ 3.5 minutes
+		{ threshold: 240, multiplier: 1 } // ≤ 4 minutes
 	]
 };
 
@@ -61,9 +61,11 @@ export const TIMING: TimingConfig = {
  */
 export const WIKIPEDIA: WikipediaConfig = {
 	articlesToFetch: 10,
-	promptMinWords: 3,
+	promptMinWords: 4,
 	promptMaxWords: 6,
-	bonusWordCount: 5,
+	promptMinSyllables: 8,
+	promptMaxSyllables: 12,
+	bonusWordCount: 4,
 	bonusWordMinLength: 4,
 	bonusWordMaxLength: 10,
 	fillerWords: [

@@ -79,8 +79,8 @@ export interface ScoringConfig {
 	wordBank: {
 		/** Points per completion using a bonus word */
 		perUse: number;
-		/** Bonus points based on variety (1-5 words used) */
-		varietyBonus: [number, number, number, number, number]; // [1 word, 2 words, 3 words, 4 words, 5 words]
+		/** Bonus points based on variety (1-4 words used) */
+		varietyBonus: [number, number, number, number]; // [1 word, 2 words, 3 words, 4 words]
 	};
 }
 
@@ -106,6 +106,10 @@ export interface WikipediaConfig {
 	promptMinWords: number;
 	/** Maximum words in prompt */
 	promptMaxWords: number;
+	/** Minimum syllables in prompt */
+	promptMinSyllables: number;
+	/** Maximum syllables in prompt */
+	promptMaxSyllables: number;
 	/** Number of bonus words */
 	bonusWordCount: number;
 	/** Minimum length for bonus words */
@@ -187,12 +191,20 @@ export interface CompletionScore {
 	/** Alliteration (consonant matches) */
 	alliteration: {
 		points: number;
-		matches: Array<{ consonant: string; count: number }>;
+		matches: Array<{ 
+			consonant: string; 
+			count: number;
+			details: Array<{ word: string; occurrences: number }>;
+		}>;
 	};
 	/** Consonance (vowel matches) */
 	consonance: {
 		points: number;
-		matches: Array<{ vowel: string; count: number }>;
+		matches: Array<{ 
+			vowel: string; 
+			count: number;
+			details: Array<{ word: string; occurrences: number }>;
+		}>;
 	};
 	/** Word bank bonus */
 	wordBankBonus: {
@@ -267,6 +279,7 @@ export interface ValidationResult {
 	valid: boolean;
 	error?: string;
 	invalidWord?: string;
+	unknownWords?: string[];
 }
 
 // ============================================================================
